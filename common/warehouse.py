@@ -1,6 +1,7 @@
 """Warehouse abstraction: DuckDB locally, Snowflake in cloud mode."""
 
 from collections.abc import Sequence
+from contextlib import closing
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
@@ -55,7 +56,7 @@ class DuckDBWarehouse:
                 self._con.execute(
                     f"create table if not exists {target} as select * from _df_in where 1=0"
                 )
-                self._con.execute(f"insert into {target} select * from _df_in")
+                self._con.execute(f"insert into {target} by name select * from _df_in")
         finally:
             self._con.unregister("_df_in")
 
@@ -77,12 +78,14 @@ class SnowflakeWarehouse:
         )
 
     def execute(self, sql: str, params: Sequence[Any] | None = None) -> None:
-        self._con.cursor().execute(sql, params)
+        with closing(self._con.cursor()) as cur:
+            cur.execute(sql, params)
 
     def query_df(self, sql: str) -> pd.DataFrame:
-        cur = self._con.cursor()
-        cur.execute(sql)
-        return cur.fetch_pandas_all()
+        with closing(self._con.cursor()) as cur:
+            cur.execute(sql)
+            df: pd.DataFrame = cur.fetch_pandas_all()
+        return df.rename(columns=str.lower)
 
     def write_df(
         self, df: pd.DataFrame, schema: str, table: str, mode: WriteMode = "append"

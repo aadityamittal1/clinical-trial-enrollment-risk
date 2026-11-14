@@ -86,6 +86,8 @@ def write_jsonl_gz(storage: Storage, key: str, records: Iterable[dict[str, Any]]
 
 def read_jsonl_gz(storage: Storage, key: str) -> Iterator[dict[str, Any]]:
     text = gzip.decompress(storage.read_bytes(key)).decode("utf-8")
-    for line in text.splitlines():
+    # split on "\n" only: str.splitlines() also splits on U+2028, U+0085 etc., which are
+    # legal unescaped inside JSON strings.
+    for line in text.split("\n"):
         if line.strip():
             yield json.loads(line)

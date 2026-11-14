@@ -32,6 +32,14 @@ def test_append_and_replace(wh: DuckDBWarehouse) -> None:
     assert wh.query_df("select a from raw.t")["a"].tolist() == [9]
 
 
+def test_append_matches_columns_by_name(wh: DuckDBWarehouse) -> None:
+    wh.write_df(pd.DataFrame({"a": [1], "b": ["x"]}), "raw", "t")
+    wh.write_df(pd.DataFrame({"b": ["y"], "a": [2]}), "raw", "t", mode="append")
+    df = wh.query_df("select a, b from raw.t order by a")
+    assert df["a"].tolist() == [1, 2]
+    assert df["b"].tolist() == ["x", "y"]
+
+
 def test_execute_with_params(wh: DuckDBWarehouse) -> None:
     wh.execute("create schema s")
     wh.execute("create table s.t (a integer)")

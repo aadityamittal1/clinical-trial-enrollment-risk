@@ -87,3 +87,10 @@ def test_azure_storage_existing_container_not_recreated() -> None:
         container.exists.return_value = True
         AzureBlobStorage("conn", "landing")
         container.create_container.assert_not_called()
+
+
+def test_jsonl_gz_preserves_unicode_line_separators(tmp_path: Path) -> None:
+    st = FileStorage(tmp_path)
+    records = [{"t": "a b\x85c\x0bd\x0ce f"}, {"t": "next"}]
+    write_jsonl_gz(st, "x/p.jsonl.gz", records)
+    assert list(read_jsonl_gz(st, "x/p.jsonl.gz")) == records
