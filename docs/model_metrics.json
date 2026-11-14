@@ -1,0 +1,329 @@
+{
+  "generated_at": "2026-11-14T23:37:29+00:00",
+  "model_name": "trial-risk-lgbm",
+  "model_version": "1",
+  "run_id": "a8d510b2d5c64a299e77524f86ae684d",
+  "prevalence_note": "The sample snapshot oversamples terminated trials, so positive rates, PR-AUC values and absolute probabilities do not reflect real-world prevalence.",
+  "soft_leak_note": "n_sites, n_countries and us_only come from the current site list, which can change after registration (known soft leak, kept per the spec).",
+  "split": {
+    "by": "start_year",
+    "train": "<= 2016",
+    "val": "2017-2018",
+    "test": "2019-2020",
+    "dropped": "> 2020 or missing start_year",
+    "sizes": {
+      "train": 1171,
+      "val": 262,
+      "test": 258
+    },
+    "positive_rate": {
+      "train": 0.15456874466268147,
+      "val": 0.16030534351145037,
+      "test": 0.14728682170542637
+    }
+  },
+  "test_registered_model": {
+    "pr_auc": 0.4250870633769325,
+    "no_skill_pr_auc": 0.14728682170542637,
+    "roc_auc": 0.7421052631578947,
+    "brier": 0.11060579114744198,
+    "log_loss": 0.3760899363873848,
+    "mean_predicted": 0.10043271394383835,
+    "n": 258.0,
+    "n_positive": 38.0,
+    "ece": 0.06059369274537583
+  },
+  "test_matches_training_run": true,
+  "pr_auc": {
+    "train": {
+      "lightgbm": 0.945110004207648,
+      "logistic": 0.5532087193158769,
+      "no_skill": 0.15456874466268147
+    },
+    "val": {
+      "lightgbm": 0.3164557613792414,
+      "logistic": 0.287416866770827,
+      "no_skill": 0.16030534351145037
+    },
+    "test": {
+      "lightgbm": 0.4250870633769325,
+      "logistic": 0.4551708536398597,
+      "no_skill": 0.14728682170542637
+    }
+  },
+  "training_run_metrics": {
+    "lightgbm": {
+      "lightgbm_test_brier": 0.11060579114744198,
+      "lightgbm_test_ece": 0.06059369274537583,
+      "lightgbm_test_log_loss": 0.3760899363873848,
+      "lightgbm_test_mean_predicted": 0.10043271394383835,
+      "lightgbm_test_pr_auc": 0.4250870633769325,
+      "lightgbm_test_roc_auc": 0.7421052631578947,
+      "lightgbm_train_brier": 0.05004138329669904,
+      "lightgbm_train_log_loss": 0.18500441689369504,
+      "lightgbm_train_mean_predicted": 0.15374807795811316,
+      "lightgbm_train_pr_auc": 0.945110004207648,
+      "lightgbm_train_roc_auc": 0.9891288576371449,
+      "lightgbm_val_brier": 0.1324638749375465,
+      "lightgbm_val_log_loss": 0.4382144663624177,
+      "lightgbm_val_mean_predicted": 0.1174006797519489,
+      "lightgbm_val_pr_auc": 0.3164557613792414,
+      "lightgbm_val_roc_auc": 0.6957792207792208
+    },
+    "logistic": {
+      "logistic_test_brier": 0.1083143548795312,
+      "logistic_test_ece": 0.05534247804490018,
+      "logistic_test_log_loss": 0.369712509839334,
+      "logistic_test_mean_predicted": 0.11440772903555384,
+      "logistic_test_pr_auc": 0.4551708536398597,
+      "logistic_test_roc_auc": 0.7358851674641148,
+      "logistic_train_brier": 0.09821505959480503,
+      "logistic_train_log_loss": 0.32661877685754337,
+      "logistic_train_mean_predicted": 0.154546740980951,
+      "logistic_train_pr_auc": 0.5532087193158769,
+      "logistic_train_roc_auc": 0.8231932585523745,
+      "logistic_val_brier": 0.1337925046959566,
+      "logistic_val_log_loss": 0.42854595671537116,
+      "logistic_val_mean_predicted": 0.1344586609537862,
+      "logistic_val_pr_auc": 0.287416866770827,
+      "logistic_val_roc_auc": 0.707034632034632
+    },
+    "no_skill": {
+      "no_skill_test_pr_auc": 0.14728682170542637,
+      "no_skill_train_pr_auc": 0.15456874466268147,
+      "no_skill_val_pr_auc": 0.16030534351145037
+    }
+  },
+  "calibration_test": {
+    "n_bins": 8,
+    "strategy": "quantile",
+    "bins": [
+      {
+        "mean_predicted": 0.014307034343373338,
+        "observed_rate": 0.030303030303030304,
+        "count": 33.0,
+        "p_min": 0.007728354904292901,
+        "p_max": 0.019831564368998026
+      },
+      {
+        "mean_predicted": 0.024935731352259145,
+        "observed_rate": 0.0625,
+        "count": 32.0,
+        "p_min": 0.019949634903857198,
+        "p_max": 0.030653321964981987
+      },
+      {
+        "mean_predicted": 0.03709129472516592,
+        "observed_rate": 0.09375,
+        "count": 32.0,
+        "p_min": 0.03163836878185431,
+        "p_max": 0.042191735301518915
+      },
+      {
+        "mean_predicted": 0.05047619192718995,
+        "observed_rate": 0.0,
+        "count": 32.0,
+        "p_min": 0.04255434712083007,
+        "p_max": 0.05957819416380991
+      },
+      {
+        "mean_predicted": 0.07107388595773884,
+        "observed_rate": 0.1875,
+        "count": 32.0,
+        "p_min": 0.05960682933318307,
+        "p_max": 0.08489648467094837
+      },
+      {
+        "mean_predicted": 0.10333140300075955,
+        "observed_rate": 0.21875,
+        "count": 32.0,
+        "p_min": 0.08675085921450038,
+        "p_max": 0.12755763944514475
+      },
+      {
+        "mean_predicted": 0.1611615100387047,
+        "observed_rate": 0.15625,
+        "count": 32.0,
+        "p_min": 0.1282040821591845,
+        "p_max": 0.19768419095461873
+      },
+      {
+        "mean_predicted": 0.3364020460642665,
+        "observed_rate": 0.42424242424242425,
+        "count": 33.0,
+        "p_min": 0.19796458069534492,
+        "p_max": 0.6674581104799477
+      }
+    ]
+  },
+  "global_shap_test": [
+    {
+      "feature": "condition_category",
+      "mean_abs_shap": 0.42414844961240306,
+      "mean_shap": -0.09205073643410852
+    },
+    {
+      "feature": "phase",
+      "mean_abs_shap": 0.26046315891472865,
+      "mean_shap": -0.08253507364341084
+    },
+    {
+      "feature": "healthy_volunteers",
+      "mean_abs_shap": 0.24864667441860464,
+      "mean_shap": -0.024957534883720933
+    },
+    {
+      "feature": "max_age_years",
+      "mean_abs_shap": 0.2358677635658915,
+      "mean_shap": 0.016061027131782948
+    },
+    {
+      "feature": "us_only",
+      "mean_abs_shap": 0.18479668992248058,
+      "mean_shap": -0.018615604651162784
+    },
+    {
+      "feature": "n_sites",
+      "mean_abs_shap": 0.16054063565891472,
+      "mean_shap": 0.010814511627906975
+    },
+    {
+      "feature": "n_inclusion_criteria",
+      "mean_abs_shap": 0.14903654651162793,
+      "mean_shap": -0.010957422480620154
+    },
+    {
+      "feature": "sponsor_class",
+      "mean_abs_shap": 0.14894694186046512,
+      "mean_shap": -0.019363104651162793
+    },
+    {
+      "feature": "criteria_text_length",
+      "mean_abs_shap": 0.1478930542635659,
+      "mean_shap": 0.03150080620155039
+    },
+    {
+      "feature": "has_drug",
+      "mean_abs_shap": 0.11309632170542637,
+      "mean_shap": -0.027186647286821707
+    },
+    {
+      "feature": "n_exclusion_criteria",
+      "mean_abs_shap": 0.10680597674418606,
+      "mean_shap": -0.007821534883720931
+    },
+    {
+      "feature": "sex",
+      "mean_abs_shap": 0.10550197674418604,
+      "mean_shap": -0.011652077519379845
+    },
+    {
+      "feature": "start_year",
+      "mean_abs_shap": 0.08283053875968993,
+      "mean_shap": -0.07374212015503875
+    },
+    {
+      "feature": "min_age_years",
+      "mean_abs_shap": 0.07971838759689921,
+      "mean_shap": -0.002489015503875969
+    },
+    {
+      "feature": "has_dmc",
+      "mean_abs_shap": 0.07798367829457363,
+      "mean_shap": -0.018758158914728686
+    },
+    {
+      "feature": "has_device",
+      "mean_abs_shap": 0.06953303875968991,
+      "mean_shap": 0.012735193798449613
+    },
+    {
+      "feature": "allocation",
+      "mean_abs_shap": 0.06851255813953488,
+      "mean_shap": 0.0027754728682170536
+    },
+    {
+      "feature": "masking",
+      "mean_abs_shap": 0.05558949612403101,
+      "mean_shap": 0.002656550387596899
+    },
+    {
+      "feature": "has_biological",
+      "mean_abs_shap": 0.04809558914728682,
+      "mean_shap": 0.0019163178294573661
+    },
+    {
+      "feature": "has_behavioral",
+      "mean_abs_shap": 0.04662159689922481,
+      "mean_shap": -0.006520503875968992
+    },
+    {
+      "feature": "n_conditions",
+      "mean_abs_shap": 0.04631596511627906,
+      "mean_shap": -0.0012346085271317826
+    },
+    {
+      "feature": "has_procedure",
+      "mean_abs_shap": 0.04464962790697675,
+      "mean_shap": -0.010629100775193799
+    },
+    {
+      "feature": "n_collaborators",
+      "mean_abs_shap": 0.025923596899224806,
+      "mean_shap": -0.000489674418604651
+    },
+    {
+      "feature": "n_arms",
+      "mean_abs_shap": 0.02439382170542636,
+      "mean_shap": 0.001416139534883721
+    },
+    {
+      "feature": "n_countries",
+      "mean_abs_shap": 0.017395992248062014,
+      "mean_shap": 0.0021771937984496124
+    },
+    {
+      "feature": "has_other_intervention",
+      "mean_abs_shap": 0.013233213178294572,
+      "mean_shap": 0.00040649224806201553
+    },
+    {
+      "feature": "primary_purpose",
+      "mean_abs_shap": 0.013064717054263566,
+      "mean_shap": 0.0020980116279069767
+    }
+  ],
+  "features": {
+    "categorical": [
+      "phase",
+      "allocation",
+      "masking",
+      "primary_purpose",
+      "sponsor_class",
+      "sex",
+      "condition_category"
+    ],
+    "numeric": [
+      "has_drug",
+      "has_biological",
+      "has_device",
+      "has_procedure",
+      "has_behavioral",
+      "has_other_intervention",
+      "has_dmc",
+      "healthy_volunteers",
+      "us_only",
+      "n_arms",
+      "n_collaborators",
+      "min_age_years",
+      "max_age_years",
+      "n_inclusion_criteria",
+      "n_exclusion_criteria",
+      "criteria_text_length",
+      "n_sites",
+      "n_countries",
+      "n_conditions",
+      "start_year"
+    ]
+  }
+}
