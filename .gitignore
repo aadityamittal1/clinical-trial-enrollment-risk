@@ -1,1 +1,16 @@
 .superpowers/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+data/landing/
+data/warehouse/
+data/mlflow/
+mlruns/
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+.env

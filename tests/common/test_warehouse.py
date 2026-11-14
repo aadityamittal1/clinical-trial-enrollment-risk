@@ -1,0 +1,78 @@
+from collections.abc import Iterator
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
+
+from common.config import Settings
+from common.warehouse import DuckDBWarehouse, SnowflakeWarehouse, get_warehouse
+
+
+@pytest.fixture
+def wh(tmp_path: Path) -> Iterator[DuckDBWarehouse]:
+    w = DuckDBWarehouse(tmp_path / "nested" / "dir" / "t.duckdb")
+    yield w
+    w.close()
+
+
+def test_write_creates_parent_dirs_schema_and_table(wh: DuckDBWarehouse, tmp_path: Path) -> None:
+    wh.write_df(pd.DataFrame({"a": [1, 2], "b": ["x", "y"]}), "raw", "t")
+    assert (tmp_path / "nested" / "dir" / "t.duckdb").exists()
+    df = wh.query_df("select * from raw.t order by a")
+    assert df["a"].tolist() == [1, 2]
+    assert df["b"].tolist() == ["x", "y"]
+
+
+def test_append_and_replace(wh: DuckDBWarehouse) -> None:
+    wh.write_df(pd.DataFrame({"a": [1]}), "raw", "t")
+    wh.write_df(pd.DataFrame({"a": [2]}), "raw", "t", mode="append")
+    assert wh.query_df("select a from raw.t order by a")["a"].tolist() == [1, 2]
+    wh.write_df(pd.DataFrame({"a": [9]}), "raw", "t", mode="replace")
+    assert wh.query_df("select a from raw.t")["a"].tolist() == [9]
+
+
+def test_execute_with_params(wh: DuckDBWarehouse) -> None:
+    wh.execute("create schema s")
+    wh.execute("create table s.t (a integer)")
+    wh.execute("insert into s.t values (?)", [5])
+    assert wh.query_df("select a from s.t")["a"].tolist() == [5]
+
+
+def test_invalid_mode(wh: DuckDBWarehouse) -> None:
+    with pytest.raises(ValueError):
+        wh.write_df(pd.DataFrame({"a": [1]}), "raw", "t", mode="nope")  # type: ignore[arg-type]
+
+
+def test_get_warehouse_duckdb(tmp_path: Path) -> None:
+    s = Settings(_env_file=None, duckdb_path=str(tmp_path / "w.duckdb"))  # type: ignore[call-arg]
+    w = get_warehouse(s)
+    assert isinstance(w, DuckDBWarehouse)
+    w.close()
+
+
+def test_snowflake_construction_and_execute() -> None:
+    s = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        mode="cloud",
+        snowflake_account="a",
+        snowflake_user="u",
+        snowflake_password="p",
+        snowflake_role="r",
+        snowflake_warehouse="w",
+        snowflake_database="d",
+    )
+    fake = MagicMock()
+    parent = MagicMock(connector=fake)
+    with patch.dict("sys.modules", {"snowflake": parent, "snowflake.connector": fake}):
+        wh = get_warehouse(s)
+        assert isinstance(wh, SnowflakeWarehouse)
+        fake.connect.assert_called_once_with(
+            account="a", user="u", password="p", role="r", warehouse="w", database="d"
+        )
+        wh.execute("select 1")
+        fake.connect.return_value.cursor.return_value.execute.assert_called_once_with(
+            "select 1", None
+        )
+        wh.close()
+        fake.connect.return_value.close.assert_called_once()
