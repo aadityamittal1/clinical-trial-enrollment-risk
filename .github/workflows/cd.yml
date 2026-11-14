@@ -40,6 +40,15 @@ jobs:
           tags: |
             ghcr.io/${{ env.OWNER }}/trial-risk-serving:${{ github.sha }}
             ghcr.io/${{ env.OWNER }}/trial-risk-serving:latest
+      - name: Push airflow image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/airflow.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER }}/trial-risk-airflow:${{ github.sha }}
+            ghcr.io/${{ env.OWNER }}/trial-risk-airflow:latest
 
   deploy-aks:
     needs: push-images

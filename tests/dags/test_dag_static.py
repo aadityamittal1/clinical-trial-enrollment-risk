@@ -48,9 +48,34 @@ def test_dbt_target_expression() -> None:
 
 def test_image_and_pod_settings() -> None:
     assert '"trial-risk-pipeline:local" if MODE == "local"' in DAG_SRC
-    assert 'image_pull_policy="IfNotPresent"' in DAG_SRC
+    assert "image_pull_policy=PULL_POLICY" in DAG_SRC
     assert 'on_finish_action="delete_pod"' in DAG_SRC
     assert "is_delete_operator_pod" not in DAG_SRC
+
+
+def test_env_contract_and_security_context() -> None:
+    names = {
+        n.value
+        for n in ast.walk(TREE)
+        if isinstance(n, ast.Constant)
+        and isinstance(n.value, str)
+        and n.value.startswith("TRIAL_RISK_")
+    }
+    assert names == {
+        "TRIAL_RISK_MODE", "TRIAL_RISK_NAMESPACE", "TRIAL_RISK_IMAGE",
+        "TRIAL_RISK_IMAGE_PULL_POLICY", "TRIAL_RISK_CONFIGMAP", "TRIAL_RISK_SECRET",
+        "TRIAL_RISK_DUCKDB_PVC", "TRIAL_RISK_DUCKDB_MOUNT",
+    }
+    assert "Variable" not in DAG_SRC
+    assert "run_as_user=10001" in DAG_SRC and "fs_group=10001" in DAG_SRC
+
+
+def test_airflow_image_in_ci_and_cd() -> None:
+    ci = str(_wf("ci.yml")["jobs"]["docker-build"])
+    assert "deploy/docker/airflow.Dockerfile" in ci and "trial-risk-airflow:local" in ci
+    cd = str(_wf("cd.yml")["jobs"]["push-images"])
+    assert "deploy/docker/airflow.Dockerfile" in cd
+    assert "ghcr.io/${{ env.OWNER }}/trial-risk-airflow" in cd
 
 
 def test_order() -> None:
@@ -77,8 +102,7 @@ def test_dag_settings() -> None:
     assert DAG_SRC.count("catchup=False") == 2
     assert "schedule=None" in DAG_SRC
     assert '"retries": 3' in DAG_SRC and "retry_exponential_backoff" in DAG_SRC
-    for needle in ("trial-risk-env", "trial-risk-secrets", "trial-risk-warehouse"):
-        assert needle in DAG_SRC
+    assert "name=CONFIGMAP" in DAG_SRC and "name=SECRET" in DAG_SRC
     assert "airflow.providers.cncf.kubernetes.operators.pod" in DAG_SRC
 
 

@@ -3,10 +3,12 @@
 STATIC TIER: written against Airflow with the cncf.kubernetes provider.
 Not executed by the authors; validated only by tests/dags/test_dag_static.py (ast).
 
-Settings come from Airflow Variables, then environment, then defaults:
-  TRIAL_RISK_NAMESPACE (trial-risk), TRIAL_RISK_PIPELINE_IMAGE
-  (trial-risk-pipeline:local in local mode, ghcr.io/OWNER/trial-risk-pipeline:latest otherwise), TRIAL_RISK_MODE (local|cloud).
-When the mode is "local" the PVC `trial-risk-warehouse` is mounted at /data so
+Settings come from environment variables (set by the Airflow Helm values):
+  TRIAL_RISK_MODE (local), TRIAL_RISK_NAMESPACE (trial-risk), TRIAL_RISK_IMAGE,
+  TRIAL_RISK_IMAGE_PULL_POLICY (IfNotPresent), TRIAL_RISK_CONFIGMAP (trial-risk-env),
+  TRIAL_RISK_SECRET (trial-risk-secrets), TRIAL_RISK_DUCKDB_PVC (trial-risk-warehouse),
+  TRIAL_RISK_DUCKDB_MOUNT (/data).
+When the mode is "local" the DuckDB PVC is mounted at the mount path so
 all pods share the DuckDB file.
 """
 
@@ -16,26 +18,25 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.models import Variable
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s
 
-
-def _setting(name: str, default: str) -> str:
-    return str(Variable.get(name, default_var=os.environ.get(name, default)))
-
-
-NAMESPACE = _setting("TRIAL_RISK_NAMESPACE", "trial-risk")
-MODE = _setting("TRIAL_RISK_MODE", "local")
-IMAGE = _setting(
-    "TRIAL_RISK_PIPELINE_IMAGE",
+NAMESPACE = os.environ.get("TRIAL_RISK_NAMESPACE", "trial-risk")
+MODE = os.environ.get("TRIAL_RISK_MODE", "local")
+IMAGE = os.environ.get(
+    "TRIAL_RISK_IMAGE",
     "trial-risk-pipeline:local" if MODE == "local" else "ghcr.io/OWNER/trial-risk-pipeline:latest",
 )
+PULL_POLICY = os.environ.get("TRIAL_RISK_IMAGE_PULL_POLICY", "IfNotPresent")
+CONFIGMAP = os.environ.get("TRIAL_RISK_CONFIGMAP", "trial-risk-env")
+SECRET = os.environ.get("TRIAL_RISK_SECRET", "trial-risk-secrets")
+DUCKDB_PVC = os.environ.get("TRIAL_RISK_DUCKDB_PVC", "trial-risk-warehouse")
+DUCKDB_MOUNT = os.environ.get("TRIAL_RISK_DUCKDB_MOUNT", "/data")
 DBT_TARGET = "local" if MODE == "local" else "cloud"
 
 ENV_FROM = [
-    k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="trial-risk-env")),
-    k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="trial-risk-secrets")),
+    k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=CONFIGMAP)),
+    k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=SECRET)),
 ]
 
 VOLUMES: list[k8s.V1Volume] = []
@@ -45,11 +46,11 @@ if MODE == "local":
         k8s.V1Volume(
             name="warehouse",
             persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
-                claim_name="trial-risk-warehouse"
+                claim_name=DUCKDB_PVC
             ),
         )
     ]
-    VOLUME_MOUNTS = [k8s.V1VolumeMount(name="warehouse", mount_path="/data")]
+    VOLUME_MOUNTS = [k8s.V1VolumeMount(name="warehouse", mount_path=DUCKDB_MOUNT)]
 
 DEFAULT_ARGS = {
     "owner": "trial-risk",
@@ -66,7 +67,8 @@ def _pod(task_id: str, cmds: list[str]) -> KubernetesPodOperator:
         name=task_id.replace("_", "-"),
         namespace=NAMESPACE,
         image=IMAGE,
-        image_pull_policy="IfNotPresent",
+        image_pull_policy=PULL_POLICY,
+        security_context=k8s.V1PodSecurityContext(run_as_user=10001, fs_group=10001),
         cmds=cmds,
         env_from=ENV_FROM,
         volumes=VOLUMES,

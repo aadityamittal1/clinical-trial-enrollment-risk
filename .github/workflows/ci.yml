@@ -47,6 +47,13 @@ jobs:
           file: deploy/docker/serving.Dockerfile
           push: false
           tags: trial-risk-serving:local
+      - name: Build airflow image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/airflow.Dockerfile
+          push: false
+          tags: trial-risk-airflow:local
 
   kind-e2e:
     # Separate job so a kind failure is distinguishable from lint/test failures.
@@ -60,12 +67,6 @@ jobs:
           cluster_name: trial-risk
           config: deploy/kind/cluster.yaml
       - run: uv sync
-      - name: Build and load local images into kind
-        # deploy/local-up.sh may also do this; repeating it is harmless.
-        run: |
-          docker build -f deploy/docker/pipeline.Dockerfile -t trial-risk-pipeline:local .
-          docker build -f deploy/docker/serving.Dockerfile -t trial-risk-serving:local .
-          kind load docker-image trial-risk-pipeline:local trial-risk-serving:local --name trial-risk
       - name: Bring up the stack on kind
         run: bash deploy/local-up.sh
       - name: Wait for the stack in the cluster
