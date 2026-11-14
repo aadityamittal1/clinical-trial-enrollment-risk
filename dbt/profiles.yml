@@ -1,0 +1,25 @@
+# Profiles for the trial-risk dbt project. No secrets here: every value comes from the
+# environment (see .env.example). Use with --profiles-dir dbt.
+trial_risk:
+  target: local
+  outputs:
+    # Local / open-source mode: DuckDB file written by `python -m ingestion load`.
+    # A relative DUCKDB_PATH resolves against the working directory (run from the repo root).
+    local:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', 'data/warehouse/trialrisk.duckdb') }}"
+      schema: main
+      threads: 4
+
+    # Cloud mode: Snowflake (static tier, never run on the build machine).
+    cloud:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      schema: marts
+      threads: 4
+      client_session_keep_alive: false

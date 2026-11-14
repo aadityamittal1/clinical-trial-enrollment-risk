@@ -1,0 +1,47 @@
+# dbt project for the trial-risk platform.
+# Run from the repo root:
+#   dbt build --project-dir dbt --profiles-dir dbt --target local|cloud
+# Every dialect difference (JSON access, array flattening, regex, safe casts) lives in
+# adapter-dispatched macros under macros/ with duckdb__ and snowflake__ implementations.
+name: trial_risk
+version: "1.0.0"
+config-version: 2
+profile: trial_risk
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: target
+clean-targets: ["target", "dbt_packages"]
+
+flags:
+  send_anonymous_usage_stats: false
+
+vars:
+  # Source freshness thresholds (hours) on raw.*.loaded_at, used by `dbt source freshness`.
+  # `dbt build` never evaluates freshness, so the static sample cannot fail a build.
+  freshness_warn_after_hours: 36
+  freshness_error_after_hours: 72
+
+# marts.ml_scores is written by the scoring job (python -m ml score); make sure it exists
+# (empty) before anything selects from it so ml_scores_latest always builds.
+on-run-start:
+  - "{{ create_marts_schema_if_missing() }}"
+  - "{{ create_ml_scores_if_missing() }}"
+
+seeds:
+  trial_risk:
+    +schema: staging
+
+models:
+  trial_risk:
+    staging:
+      +schema: staging
+      +materialized: table
+    intermediate:
+      +schema: staging
+      +materialized: table
+    marts:
+      +schema: marts
+      +materialized: table

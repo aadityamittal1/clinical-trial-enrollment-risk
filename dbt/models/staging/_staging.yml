@@ -1,0 +1,298 @@
+version: 2
+
+models:
+  - name: stg_ctgov_latest
+    description: >
+      Latest raw version of each study (highest last_update_posted, ties: latest load).
+      All ctgov staging models read the JSON from here.
+    columns:
+      - name: nct_id
+        description: NCT identifier.
+        data_tests: [unique, not_null]
+      - name: last_update_posted
+        description: Last update posted date of this version.
+      - name: loaded_at
+        description: When this version was loaded.
+      - name: study
+        description: Study JSON (DuckDB JSON / Snowflake VARIANT).
+
+  - name: stg_studies
+    description: One row per study (latest version), flattened from protocolSection.
+    columns:
+      - name: nct_id
+        description: NCT identifier.
+        data_tests: [unique, not_null]
+      - name: brief_title
+        description: identificationModule.briefTitle.
+      - name: overall_status
+        description: statusModule.overallStatus.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: &overall_status_values
+                  - ACTIVE_NOT_RECRUITING
+                  - COMPLETED
+                  - ENROLLING_BY_INVITATION
+                  - NOT_YET_RECRUITING
+                  - RECRUITING
+                  - SUSPENDED
+                  - TERMINATED
+                  - WITHDRAWN
+                  - AVAILABLE
+                  - NO_LONGER_AVAILABLE
+                  - TEMPORARILY_NOT_AVAILABLE
+                  - APPROVED_FOR_MARKETING
+                  - WITHHELD
+                  - UNKNOWN
+      - name: why_stopped
+        description: statusModule.whyStopped (free text; outcome, never a feature).
+      - name: study_type
+        description: designModule.studyType.
+      - name: phase
+        description: designModule.phases joined with '/', 'NA' when absent or empty.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: &phase_values
+                  - NA
+                  - EARLY_PHASE1
+                  - PHASE1
+                  - PHASE2
+                  - PHASE3
+                  - PHASE4
+                  - PHASE1/PHASE2
+                  - PHASE2/PHASE3
+      - name: allocation
+        description: designInfo.allocation (RANDOMIZED, NON_RANDOMIZED, NA).
+      - name: masking
+        description: designInfo.maskingInfo.masking.
+      - name: primary_purpose
+        description: designInfo.primaryPurpose.
+      - name: n_arms
+        description: Number of armGroups; NULL when the record has no armGroups.
+      - name: enrollment_count
+        description: enrollmentInfo.count (actual once closed; never a feature).
+      - name: enrollment_type
+        description: enrollmentInfo.type (ACTUAL / ESTIMATED).
+      - name: start_date
+        description: startDateStruct.date; 'YYYY-MM' dates become the first of the month.
+      - name: start_date_type
+        description: startDateStruct.type (ACTUAL / ESTIMATED, often absent).
+      - name: completion_date
+        description: completionDateStruct.date ('YYYY-MM' -> first of the month).
+      - name: completion_date_type
+        description: completionDateStruct.type.
+      - name: lead_sponsor_name
+        description: leadSponsor.name (trimmed).
+      - name: lead_sponsor_class
+        description: leadSponsor.class.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: &sponsor_class_values
+                  - NIH
+                  - FED
+                  - OTHER_GOV
+                  - INDIV
+                  - INDUSTRY
+                  - NETWORK
+                  - AMBIG
+                  - OTHER
+                  - UNKNOWN
+      - name: n_collaborators
+        description: Number of collaborators (0 when the key is missing).
+        data_tests: [not_null]
+      - name: has_dmc
+        description: oversightModule.oversightHasDmc (NULL when not reported).
+      - name: min_age_years
+        description: eligibilityModule.minimumAge converted to years (NULL when absent).
+      - name: max_age_years
+        description: eligibilityModule.maximumAge converted to years (NULL = no upper limit).
+      - name: sex
+        description: eligibilityModule.sex (ALL, FEMALE, MALE).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ALL, FEMALE, MALE]
+      - name: healthy_volunteers
+        description: eligibilityModule.healthyVolunteers.
+      - name: eligibility_criteria
+        description: eligibilityModule.eligibilityCriteria (markdown-ish text).
+      - name: has_results
+        description: Top-level hasResults (outcome, never a feature).
+      - name: first_posted_date
+        description: studyFirstPostDateStruct.date.
+      - name: last_update_posted
+        description: Last update posted date (never a feature).
+
+  - name: stg_conditions
+    description: One row per study x condition (conditionsModule.conditions, free text).
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [nct_id, condition_index]
+    columns:
+      - name: nct_id
+        description: Study.
+        data_tests: [not_null]
+      - name: condition_index
+        description: 0-based position in the conditions array.
+        data_tests: [not_null]
+      - name: condition_name
+        description: Condition text (trimmed, non-empty).
+        data_tests: [not_null]
+
+  - name: stg_interventions
+    description: One row per study x intervention (armsInterventionsModule.interventions).
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [nct_id, intervention_index]
+    columns:
+      - name: nct_id
+        description: Study.
+        data_tests: [not_null]
+      - name: intervention_index
+        description: 0-based position in the interventions array.
+        data_tests: [not_null]
+      - name: intervention_type
+        description: DRUG, BIOLOGICAL, DEVICE, PROCEDURE, BEHAVIORAL, OTHER, RADIATION, ...
+      - name: intervention_name
+        description: Raw intervention name.
+
+  - name: stg_locations
+    description: One row per study x site (contactsLocationsModule.locations, current list).
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [nct_id, location_index]
+    columns:
+      - name: nct_id
+        description: Study.
+        data_tests: [not_null]
+      - name: location_index
+        description: 0-based position in the locations array.
+        data_tests: [not_null]
+      - name: facility
+        description: Facility name.
+      - name: city
+        description: City.
+      - name: state
+        description: State / region (often absent outside the US).
+      - name: country
+        description: Country name as given by ClinicalTrials.gov.
+      - name: latitude
+        description: geoPoint.lat.
+      - name: longitude
+        description: geoPoint.lon.
+
+  - name: stg_sponsors
+    description: One row per study x sponsor (lead sponsor and collaborators).
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [nct_id, sponsor_index]
+    columns:
+      - name: nct_id
+        description: Study.
+        data_tests: [not_null]
+      - name: sponsor_role
+        description: lead or collaborator.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [lead, collaborator]
+      - name: sponsor_index
+        description: 0 for the lead sponsor, 1..n for collaborators in listed order.
+        data_tests: [not_null]
+      - name: sponsor_name
+        description: Sponsor name (trimmed).
+        data_tests: [not_null]
+      - name: sponsor_class
+        description: Agency class.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: *sponsor_class_values
+
+  - name: stg_drug_names
+    description: >
+      One row per distinct raw intervention name of type DRUG or BIOLOGICAL, with its
+      canonical name (rules in ingestion/drug_names.py; SQL twin in macros/drug_names.sql).
+    columns:
+      - name: raw_name
+        description: Raw intervention name.
+        data_tests: [unique, not_null]
+      - name: canonical_name
+        description: >
+          Lowercased, doses and route / form words stripped; NULL for placebos and names
+          that are empty after stripping. Join key to openFDA drug_name.
+
+  - name: stg_fda_event_counts
+    description: Latest openFDA load per drug exploded to drug x reaction (non-empty results only).
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [drug_name, reaction]
+    columns:
+      - name: drug_name
+        description: Canonical drug name that was queried.
+        data_tests: [not_null]
+      - name: reaction
+        description: MedDRA preferred term (patient.reaction.reactionmeddrapt.exact).
+        data_tests: [not_null]
+      - name: report_count
+        description: Number of reports with that reaction.
+      - name: fetched_date
+        description: Date the response was fetched.
+      - name: loaded_at
+        description: Load timestamp of the response.
+
+  - name: stg_condition_mesh_terms
+    description: >
+      One row per study x MeSH term from derivedSection.conditionBrowseModule
+      (`meshes` and their `ancestors`). Input to the condition category.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [nct_id, term_source, mesh_id, mesh_term]
+    columns:
+      - name: nct_id
+        description: Study.
+        data_tests: [not_null]
+      - name: term_source
+        description: mesh (matched term) or ancestor.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [mesh, ancestor]
+      - name: mesh_id
+        description: MeSH descriptor id (Dxxxxxx).
+      - name: mesh_term
+        description: MeSH term.
+        data_tests: [not_null]
+
+seeds:
+  - name: mesh_condition_categories
+    description: >
+      Maps MeSH tree-root terms (C-tree disease categories and the F01/F03 behaviour and
+      mental-disorder roots, including pre-2023 root names) to the ~20 top-level condition
+      categories. Lower priority wins when a study matches several categories.
+    config:
+      column_types:
+        mesh_term: varchar
+        condition_category: varchar
+        priority: integer
+    columns:
+      - name: mesh_term
+        description: Exact MeSH term as it appears in conditionBrowseModule.
+        data_tests: [unique, not_null]
+      - name: condition_category
+        description: Top-level category shown in BI and used as a model feature.
+        data_tests: [not_null]
+      - name: priority
+        description: Tie-break rank (lower wins).
+        data_tests: [not_null]

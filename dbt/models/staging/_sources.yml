@@ -1,0 +1,83 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Raw API responses written by `python -m ingestion load`. Append-only, one row per
+      entity per load; never edited. Freshness thresholds come from the vars
+      freshness_warn_after_hours / freshness_error_after_hours and are only evaluated by
+      `dbt source freshness` (the daily DAG can run it); `dbt build` does not check them.
+    schema: raw
+    config:
+      loaded_at_field: loaded_at
+      freshness:
+        warn_after:
+          count: "{{ var('freshness_warn_after_hours') | int }}"
+          period: hour
+        error_after:
+          count: "{{ var('freshness_error_after_hours') | int }}"
+          period: hour
+    tables:
+      - name: ctgov_studies
+        description: One ClinicalTrials.gov v2 study object per study per load.
+        columns:
+          - name: nct_id
+            description: NCT identifier (also inside the JSON).
+            data_tests:
+              - not_null
+          - name: last_update_posted
+            description: lastUpdatePostDateStruct.date, used to keep the latest version.
+          - name: loaded_at
+            description: Load timestamp (UTC), the freshness field.
+            data_tests:
+              - not_null
+          - name: study
+            description: The study object exactly as the API returned it (JSON / VARIANT).
+      - name: fda_event_counts
+        description: >
+          One openFDA adverse-event reaction count response per drug per load:
+          {"drug_name", "fetched_at", "total_reports" (always null), "results": [{"term", "count"}]}.
+        columns:
+          - name: drug_name
+            description: Canonical lowercase drug name that was queried.
+            data_tests:
+              - not_null
+          - name: loaded_at
+            description: Load timestamp (UTC), the freshness field.
+            data_tests:
+              - not_null
+          - name: payload
+            description: The landing record (JSON / VARIANT).
+
+  - name: marts
+    description: >
+      Tables in the marts schema that dbt reads but does not build. ml_scores is created
+      empty by the on-run-start hook (macros/ml_scores.sql) when missing and appended to by
+      the scoring job (python -m ml score).
+    schema: marts
+    tables:
+      - name: ml_scores
+        description: One row per open study per scoring run.
+        columns:
+          - name: nct_id
+            description: Scored study.
+          - name: risk_score
+            description: Predicted probability of termination for low enrollment.
+          - name: model_version
+            description: Registered model version that produced the score.
+          - name: scored_at
+            description: Scoring run timestamp (UTC).
+          - name: top_driver_1
+            description: Feature with the largest absolute SHAP value.
+          - name: top_driver_2
+            description: Second-largest SHAP driver.
+          - name: top_driver_3
+            description: Third-largest SHAP driver.
+          - name: top_driver_1_shap
+            description: SHAP value of top_driver_1.
+          - name: top_driver_2_shap
+            description: SHAP value of top_driver_2.
+          - name: top_driver_3_shap
+            description: SHAP value of top_driver_3.
+          - name: shap_values
+            description: All SHAP values for the study as a JSON string.
