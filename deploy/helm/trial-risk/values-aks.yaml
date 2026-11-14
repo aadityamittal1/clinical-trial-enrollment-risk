@@ -1,0 +1,34 @@
+# AKS: MODE=cloud, Snowflake warehouse, Key Vault via the Secrets Store CSI
+# driver, images from GHCR. Replace OWNER (or pass --set images.*.repository).
+# keyVault.name/tenantId/clientId, mlflow.artifactRoot and SNOWFLAKE_ACCOUNT /
+# SNOWFLAKE_USER come from `tofu output` / the environment and are passed by
+# deploy/cloud-up.sh with --set.
+images:
+  pipeline:
+    repository: ghcr.io/OWNER/trial-risk-pipeline
+    tag: latest
+    pullPolicy: Always
+  serving:
+    repository: ghcr.io/OWNER/trial-risk-serving
+    tag: latest
+    pullPolicy: Always
+
+config:
+  MODE: cloud
+  STORAGE_BACKEND: azure
+  SNOWFLAKE_ROLE: TRIAL_RISK_ROLE
+  SNOWFLAKE_WAREHOUSE: TRIAL_RISK_WH
+  SNOWFLAKE_DATABASE: TRIAL_RISK
+
+azurite:
+  enabled: false
+
+duckdb:
+  persistence:
+    enabled: false
+
+mlflow:
+  ensureContainer: false
+
+keyVault:
+  enabled: true

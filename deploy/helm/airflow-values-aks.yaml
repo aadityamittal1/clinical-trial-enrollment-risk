@@ -1,0 +1,52 @@
+# Official apache-airflow chart (release "airflow", namespace trial-risk), AKS.
+#   helm upgrade --install airflow apache-airflow/airflow --version 1.15.0 \
+#     -n trial-risk -f deploy/helm/airflow-values-aks.yaml \
+#     --set images.airflow.repository=ghcr.io/OWNER/trial-risk-airflow
+#
+# DAG delivery decision: DAGs are BAKED INTO the Airflow image
+# (deploy/docker/airflow.Dockerfile), built and pushed to GHCR by CI, same as
+# local. One mechanism for both environments; no Git credentials in the cluster.
+images:
+  airflow:
+    repository: ghcr.io/OWNER/trial-risk-airflow
+    tag: latest
+    pullPolicy: Always
+
+executor: LocalExecutor
+
+dags:
+  persistence:
+    enabled: false
+  gitSync:
+    enabled: false
+
+# Bundled PostgreSQL keeps the AKS cost to the single small node pool.
+postgresql:
+  enabled: true
+
+redis:
+  enabled: false
+triggerer:
+  enabled: false
+statsd:
+  enabled: false
+flower:
+  enabled: false
+
+webserver:
+  service:
+    type: ClusterIP
+  defaultUser:
+    enabled: true
+
+env:
+  - name: TRIAL_RISK_NAMESPACE
+    value: trial-risk
+  - name: TRIAL_RISK_PIPELINE_IMAGE
+    value: ghcr.io/OWNER/trial-risk-pipeline:latest
+  - name: TRIAL_RISK_IMAGE_PULL_POLICY
+    value: Always
+  - name: TRIAL_RISK_CONFIGMAP
+    value: trial-risk-env
+  - name: TRIAL_RISK_SECRET
+    value: trial-risk-secrets

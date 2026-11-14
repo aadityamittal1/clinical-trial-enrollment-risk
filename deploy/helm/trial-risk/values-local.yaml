@@ -1,0 +1,27 @@
+# kind: Azurite on, DuckDB on a shared PVC, MODE=local, STORAGE_BACKEND=azure.
+# Uses the locally built images loaded into kind.
+images:
+  pipeline:
+    repository: trial-risk-pipeline
+    tag: local
+    pullPolicy: Never
+  serving:
+    repository: trial-risk-serving
+    tag: local
+    pullPolicy: Never
+
+config:
+  MODE: local
+  STORAGE_BACKEND: azure
+
+azurite:
+  enabled: true
+  accountName: devstore
+
+duckdb:
+  persistence:
+    enabled: true
+
+mlflow:
+  artifactRoot: wasbs://mlflow@devstore.blob.core.windows.net/
+  ensureContainer: true

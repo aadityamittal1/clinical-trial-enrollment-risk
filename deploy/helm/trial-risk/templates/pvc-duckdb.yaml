@@ -1,0 +1,17 @@
+{{- if .Values.duckdb.persistence.enabled }}
+# One DuckDB file shared by every pipeline pod (local/kind, single node).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.duckdb.persistence.claimName }}
+  labels:
+    {{- include "trial-risk.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.duckdb.persistence.storageClassName }}
+  storageClassName: {{ .Values.duckdb.persistence.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.duckdb.persistence.size }}
+{{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: trial-risk
+description: Trial enrollment risk platform - scoring API, MLflow, Azurite (local), config and RBAC for Airflow-launched pods.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

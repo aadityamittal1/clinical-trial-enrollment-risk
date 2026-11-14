@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. Do not commit real values.
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+location            = "eastus2"
+budget_alert_emails = ["you@example.com"]
+snowflake_account   = "orgname-accountname"
+snowflake_user      = "TRIAL_RISK_SVC"
+
+# Do NOT put the password in a file. Export it instead:
+#   export TF_VAR_snowflake_password='...'
