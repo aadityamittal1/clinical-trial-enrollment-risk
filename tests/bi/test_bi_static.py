@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Static checks on the BI definitions (Superset YAML bundle, Power BI PBIP).
 
 Neither Superset nor Power BI Desktop is exercised here: these tests only prove the files
@@ -332,3 +333,170 @@ def test_report_covers_spec_visuals():
 def test_readmes_state_unverified(readme):
     text = (ROOT / "bi" / readme / "README.md").read_text(encoding="utf-8").lower()
     assert "has not been exercised" in text
+
+
+# ------------------------------------------------------------------ per-page spec coverage
+
+_SQL_WORDS = {
+    "COUNT", "DISTINCT", "CASE", "WHEN", "THEN", "ELSE", "END", "AVG", "SUM", "IS", "NOT", "NULL", "AND", "OR",
+}  # fmt: skip
+
+
+def _identifiers(expr: str) -> set[str]:
+    return {w for w in re.findall(r"[A-Za-z_]\w*", expr) if w.upper() not in _SQL_WORDS}
+
+
+def test_superset_metric_and_filter_expressions_use_dataset_columns():
+    for ds in DATASETS.values():
+        known = {c["column_name"] for c in ds["columns"]}
+        for m in ds["metrics"]:
+            assert _identifiers(m["expression"]) <= known, (ds["table_name"], m["metric_name"])
+    for chart in CHARTS.values():
+        known = {c["column_name"] for c in DATASETS[chart["dataset_uuid"]]["columns"]}
+        for flt in chart["params"].get("adhoc_filters", []):
+            assert flt["expressionType"] == "SQL"
+            assert _identifiers(flt["sqlExpression"]) <= known, (
+                chart["slice_name"],
+                flt["sqlExpression"],
+            )
+        limit = chart["params"].get("row_limit")
+        assert limit and limit <= 1000
+
+
+SUPERSET_PAGES = {
+    "Portfolio overview": {
+        "big_number_total": 1, "echarts_timeseries_bar": 1, "pie": 1, "world_map": 1,
+    },
+    "Enrollment risk": {"big_number_total": 2, "table": 2, "box_plot": 2},
+    "Drug safety context": {"big_number_total": 2, "echarts_timeseries_bar": 1, "table": 2},
+}  # fmt: skip
+SUPERSET_FILTERS = {
+    "Portfolio overview": {"condition_category", "start_year"},
+    "Enrollment risk": {"lead_sponsor_class", "nct_id"},
+    "Drug safety context": {"canonical_name"},
+}
+
+
+def test_superset_per_tab_coverage():
+    pos = DASHBOARD["position"]
+    by_uuid = {
+        n["meta"]["uuid"]: n
+        for n in pos.values()
+        if isinstance(n, dict) and n.get("type") == "CHART"
+    }
+
+    def tab_charts(tab_id: str) -> list[dict]:
+        found, stack = [], [tab_id]
+        while stack:
+            node = pos[stack.pop()]
+            if node["type"] == "CHART":
+                found.append(CHARTS[node["meta"]["uuid"]])
+            stack.extend(node.get("children", []))
+        return found
+
+    assert by_uuid
+    tabs = {pos[t]["meta"]["text"]: t for t in pos["TABS-main"]["children"]}
+    for title, expected in SUPERSET_PAGES.items():
+        counts: dict[str, int] = {}
+        for c in tab_charts(tabs[title]):
+            counts[c["viz_type"]] = counts.get(c["viz_type"], 0) + 1
+        assert counts == expected, (title, counts)
+        filters = {
+            f["targets"][0]["column"]["name"]
+            for f in DASHBOARD["metadata"]["native_filter_configuration"]
+            if f["scope"]["rootPath"] == [tabs[title]]
+        }
+        assert filters == SUPERSET_FILTERS[title], title
+    # specific charts on the right tab
+    metrics_by_tab = {
+        title: {
+            m
+            for c in tab_charts(tabs[title])
+            for m in ([c["params"].get("metric")] + c["params"].get("metrics", []))
+        }
+        for title in tabs
+    }
+    assert {"high_risk_count", "mean_risk_score"} <= metrics_by_tab["Enrollment risk"]
+    assert {"report_volume", "match_rate"} <= metrics_by_tab["Drug safety context"]
+    assert "site_count" in metrics_by_tab["Portfolio overview"]
+
+
+PBI_PAGES = {
+    "Portfolio overview": {
+        "types": {"card": 1, "slicer": 2, "stackedColumnChart": 1, "donutChart": 1, "filledMap": 1},
+        "measures": {"Trial Count", "Site Count"},
+        "columns": {"ml_features.condition_category", "dim_study.start_year", "fct_study_sites.country"},
+    },
+    "Enrollment risk": {
+        "types": {"card": 2, "slicer": 1, "tableEx": 1, "stackedColumnChart": 2},
+        "measures": {"High Risk Count", "Mean Risk Score", "Scored Trials"},
+        "columns": {"ml_scores_latest.risk_score", "ml_scores_latest.top_driver_1", "ml_scores_latest.top_driver_2",
+                    "ml_scores_latest.top_driver_3", "dim_study.phase", "dim_study.lead_sponsor_class"},
+    },
+    "Drug safety context": {
+        "types": {"card": 2, "slicer": 1, "clusteredBarChart": 1, "tableEx": 1},
+        "measures": {"Reports Across Top Reactions", "OpenFDA Match Rate"},
+        "columns": {"fct_drug_safety.reaction", "dim_drug.canonical_name", "dim_study.ctgov_url"},
+    },
+}  # fmt: skip
+
+
+def test_pbi_per_page_coverage():
+    pages = {}
+    for d in (REPORT / "pages").iterdir():
+        if d.is_dir():
+            pages[json.loads((d / "page.json").read_text(encoding="utf-8"))["displayName"]] = d
+    for title, spec in PBI_PAGES.items():
+        types: dict[str, int] = {}
+        measures: set[str] = set()
+        columns: set[str] = set()
+        for vf in pages[title].glob("visuals/*/visual.json"):
+            v = json.loads(vf.read_text(encoding="utf-8"))
+            vt = v["visual"]["visualType"]
+            types[vt] = types.get(vt, 0) + 1
+            for entity, prop, kind in _fields(v["visual"]["query"]):
+                (measures if kind == "Measure" else columns).add(
+                    prop if kind == "Measure" else f"{entity}.{prop}"
+                )
+        assert types == spec["types"], (title, types)
+        assert spec["measures"] <= measures, (title, spec["measures"] - measures)
+        assert spec["columns"] <= columns, (title, spec["columns"] - columns)
+
+
+def test_pbi_risk_page_is_open_only_and_reactions_are_top_n():
+    risk = next(
+        json.loads((d / "page.json").read_text(encoding="utf-8"))
+        for d in (REPORT / "pages").iterdir()
+        if d.is_dir()
+        and json.loads((d / "page.json").read_text(encoding="utf-8"))["displayName"]
+        == "Enrollment risk"
+    )
+    assert "is_open" in {p for _, p, _ in _fields(risk["filterConfig"])}
+    found = []
+    for vf in REPORT.rglob("visual.json"):
+        v = json.loads(vf.read_text(encoding="utf-8"))
+        for f in v.get("filterConfig", {}).get("filters", []):
+            if f["type"] == "TopN":
+                found.append(f)
+                assert f["filter"]["From"][0]["Expression"]["Subquery"]["Query"]["Top"] == 25
+    assert len(found) == 1
+
+
+def test_tmdl_count_columns_are_integers():
+    text = (SM / "tables" / "ml_features.tmdl").read_text(encoding="utf-8")
+    for c in ("n_arms", "n_collaborators", "n_sites", "n_countries", "n_conditions", "start_year"):
+        assert re.search(rf"column {c}\n\t\tdataType: int64", text), c
+
+
+def test_condition_bridge_is_bidirectional():
+    rel = (SM / "relationships.tmdl").read_text(encoding="utf-8")
+    block = re.search(
+        r"((?:\t.*\n)+)", rel[rel.index("fromColumn: bridge_study_condition.nct_id") - 80 :]
+    ).group(1)
+    assert "bothDirections" in block
+
+
+def test_powerbi_gitignore_and_superset_placeholder_comment():
+    assert ".pbi/" in (PBI / ".gitignore").read_text(encoding="utf-8")
+    db = next((SUPERSET / "databases").glob("*.yaml")).read_text(encoding="utf-8")
+    assert db.startswith("# PLACEHOLDER")

@@ -18,6 +18,7 @@ relationship a502c4c7-a2c5-53c5-8e2b-f71826ac0c80
 	toColumn: dim_study.nct_id
 
 relationship 1c22e809-0823-5fd8-9940-641006261cbe
+	crossFilteringBehavior: bothDirections
 	fromColumn: bridge_study_condition.nct_id
 	toColumn: dim_study.nct_id
 

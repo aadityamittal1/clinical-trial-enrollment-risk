@@ -74,4 +74,7 @@ openFDA gives no report total), `OpenFDA Match Rate` (share of `dim_drug` rows w
   flag ambiguity. The trial-per-drug table relies on the `Study Drug Links` measure to hide combinations with
   no bridge row.
 - The filled map needs the tenant/Desktop setting that allows map visuals.
-- Bounding the "top reactions" bar to 25 uses the data (25 per drug), not a Top N filter.
+- The "top reported reactions" bar has a visual-level Top N filter (top 25 reactions by `Reports Across Top Reactions`), for one selected drug or across all drugs. The TopN filter JSON (subquery form) is hand-written and may need re-creating in the Filters pane.
+- `bridge_study_condition` is bidirectional to `dim_study`, so a `dim_condition` slicer would filter studies. The model is a tree around `dim_study` (leaves: `ml_features`, `ml_scores_latest`, `fct_trial_outcomes`, `fct_study_sites`, `dim_sponsor`, and the two bridge-to-dimension chains), so there is no ambiguous path; Desktop may still warn. The report itself filters on the study-level `ml_features.condition_category`, matching Superset.
+- The Enrollment risk page has a page-level filter `dim_study[is_open] = true`, so its cards and risk-band charts count open trials only, like Superset.
+- `.gitignore` here excludes Desktop's `.pbi/` cache and `localSettings.json`.
