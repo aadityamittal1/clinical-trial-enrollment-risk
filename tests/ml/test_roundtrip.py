@@ -12,7 +12,16 @@ from ml.predict import ModelNotFoundError, load_model
 from ml.score import ML_SCORES_COLUMNS, score
 from tests.ml._helpers import REPO, Trained, copy_warehouse
 
-N_OPEN = 800
+
+def _n_open(db: str) -> int:
+    """Expected scored rows: open studies per marts.dim_study.is_open (800 on the sample)."""
+    con = duckdb.connect(db, read_only=True)
+    try:
+        (n,) = con.execute("select count(*) from marts.dim_study where is_open").fetchone() or (0,)
+    finally:
+        con.close()
+    assert n > 0
+    return int(n)
 
 
 def _ml_scores(db: str) -> list[tuple[str, str]]:
@@ -57,8 +66,9 @@ def test_train_register_load_score_round_trip(ml_env: Path) -> None:
         (n_latest,) = con.execute("select count(*) from marts.ml_scores_latest").fetchone() or (0,)
     finally:
         con.close()
-    assert len(df) == N_OPEN
-    assert n_latest == N_OPEN
+    n_open = _n_open(settings.duckdb_path)
+    assert len(df) == n_open
+    assert n_latest == n_open
     assert df["nct_id"].is_unique
     assert df["risk_score"].between(0, 1).all()
     assert set(df["model_version"]) == {"1"}
@@ -92,7 +102,7 @@ def test_score_creates_ml_scores_when_missing(trained: Trained, tmp_path: Path) 
     con.close()
     settings = trained.settings.model_copy(update={"duckdb_path": str(db)})
 
-    assert score(settings) == N_OPEN
+    assert score(settings) == _n_open(str(db))
     assert [n for n, _ in _ml_scores(str(db))] == [n for n, _ in ML_SCORES_COLUMNS]
     assert dict(_ml_scores(str(db))) == dict(_ml_scores_ddl())
 

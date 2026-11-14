@@ -1,7 +1,10 @@
 """The one place scoring happens. Batch scoring (ml.score) and the API (serving) import it.
 
 * ``load_model(settings)`` -> ``LoadedModel``: the latest registered version of
-  ``settings.model_name``; raises ``ModelNotFoundError`` when nothing is registered.
+  ``settings.model_name``; raises ``ModelNotFoundError`` when nothing is registered and
+  ``FeatureMismatchError`` (a ``ModelNotFoundError`` subclass, so it is also "no usable
+  model") when the version was trained on a different feature list than the current
+  ``ml.features``. Other registry failures (corrupt / locked store) propagate unchanged.
 * ``score_frame(model, features_df)`` -> one row per input row with ``nct_id``,
   ``risk_score`` (probability of termination for low enrollment, in [0, 1]), the three
   largest absolute SHAP drivers and all SHAP values as a JSON string.
@@ -26,6 +29,7 @@ import pandas as pd
 from sklearn.pipeline import Pipeline
 
 from common.config import Settings, get_settings
+from ml import features as feature_spec
 from ml.features import ID_COLUMN
 from ml.tracking import configure_mlflow
 
@@ -48,6 +52,19 @@ class ModelNotFoundError(LookupError):
     """No version of the model is registered (serving maps this to HTTP 503)."""
 
 
+class FeatureMismatchError(ModelNotFoundError):
+    """The registered version was trained on a different feature list than ml.features now has.
+
+    The pipeline's preprocessing step references ``ml.features.prepare_features`` by name,
+    which reads the module's current FEATURES; scoring an old version after FEATURES changed
+    would silently feed it different inputs, so loading refuses instead.
+    """
+
+
+# Registry errors that mean "this model / version does not exist" (anything else re-raises).
+_NOT_FOUND_ERROR_CODES = frozenset({"RESOURCE_DOES_NOT_EXIST", "NOT_FOUND"})
+
+
 @dataclass(frozen=True)
 class LoadedModel:
     name: str
@@ -66,8 +83,10 @@ def latest_version(settings: Settings) -> Any:
     name = settings.model_name
     try:
         versions = client.search_model_versions(f"name = '{name}'")
-    except MlflowException as exc:  # e.g. registry tables missing / model unknown
-        raise ModelNotFoundError(f"no registered model {name!r} at {uri}: {exc}") from exc
+    except MlflowException as exc:
+        if exc.error_code in _NOT_FOUND_ERROR_CODES:
+            raise ModelNotFoundError(f"no registered model {name!r} at {uri}: {exc}") from exc
+        raise  # corrupt / locked / unreachable registry is not "no model"
     if not versions:
         raise ModelNotFoundError(
             f"no registered version of model {name!r} at {uri}; run `python -m ml train`"
@@ -75,12 +94,36 @@ def latest_version(settings: Settings) -> Any:
     return max(versions, key=lambda v: int(v.version))
 
 
+def check_feature_lists(params: dict[str, str], where: str) -> None:
+    """Raise FeatureMismatchError unless the run's logged feature lists equal ml.features."""
+    expected = {
+        "categorical_features": ",".join(feature_spec.CATEGORICAL_FEATURES),
+        "numeric_features": ",".join(feature_spec.NUMERIC_FEATURES),
+    }
+    for key, current in expected.items():
+        logged = params.get(key)
+        if logged is None:
+            raise FeatureMismatchError(f"{where}: run has no {key!r} param; cannot verify features")
+        if logged != current:
+            raise FeatureMismatchError(
+                f"{where} was trained with {key}={logged!r} but ml.features now has "
+                f"{current!r}; retrain (`python -m ml train`) before scoring"
+            )
+
+
 def load_model(settings: Settings | None = None) -> LoadedModel:
     """Load the latest registered version of settings.model_name from the MLflow registry."""
     import mlflow.sklearn
+    from mlflow.tracking import MlflowClient
 
     settings = settings or get_settings()
     version = latest_version(settings)
+    where = f"model {settings.model_name!r} version {version.version}"
+    if not version.run_id:
+        raise FeatureMismatchError(f"{where} has no training run; cannot verify features")
+    uri = configure_mlflow(settings)
+    run = MlflowClient(tracking_uri=uri, registry_uri=uri).get_run(version.run_id)
+    check_feature_lists(dict(run.data.params), where)
     pipeline = mlflow.sklearn.load_model(f"models:/{settings.model_name}/{version.version}")
     return LoadedModel(
         name=settings.model_name,
@@ -124,8 +167,8 @@ def score_frame(model: LoadedModel | Pipeline, features_df: pd.DataFrame) -> pd.
     pipeline = model.pipeline if isinstance(model, LoadedModel) else model
     if features_df.empty:
         return _empty_scores()
-    risk = np.clip(pipeline.predict_proba(features_df)[:, 1].astype(float), 0.0, 1.0)
-    X = pipeline[:-1].transform(features_df)
+    X = pipeline[:-1].transform(features_df)  # prepare + encode, once
+    risk = np.clip(pipeline[-1].predict_proba(X)[:, 1].astype(float), 0.0, 1.0)
     names = [str(c) for c in X.columns]
     shap_values = np.round(_positive_class_shap(pipeline[-1], X), SHAP_DECIMALS)
     order = np.argsort(-np.abs(shap_values), axis=1, kind="stable")[:, :N_DRIVERS]

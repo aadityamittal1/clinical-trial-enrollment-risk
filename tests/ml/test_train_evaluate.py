@@ -9,6 +9,7 @@ from ml import train as train_module
 from ml.evaluate import CALIBRATION_FILE, METRICS_FILE, evaluate
 from ml.train import SuspiciousMetricsError, train
 from tests.ml._helpers import Trained, copy_warehouse, make_settings
+from tests.ml._synthetic import synthetic_features
 
 
 def test_training_logs_both_models_and_no_skill(trained: Trained) -> None:
@@ -39,10 +40,15 @@ def test_suspicious_pr_auc_refuses_to_register(
     assert result.model_version == "1"
 
 
-def test_split_without_both_classes_is_rejected(trained: Trained) -> None:
-    # No labelled study starts after 2020, so val and test would be empty.
+def test_split_without_both_classes_is_rejected(
+    trained: Trained, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Every labelled row starts in 2010, so val (2017-2018) and test (2019-2020) are empty
+    # by construction, whatever the warehouse holds.
+    frame = synthetic_features(60, seed=3).assign(start_year=2010.0)
+    monkeypatch.setattr(train_module, "load_labelled", lambda warehouse: frame)
     with pytest.raises(ValueError, match="widen"):
-        train(trained.settings, train_end=2025, val_end=2026, test_end=2027)
+        train(trained.settings)
 
 
 def test_evaluate_writes_metrics_json_and_calibration_png(trained: Trained, tmp_path: Path) -> None:
@@ -57,6 +63,14 @@ def test_evaluate_writes_metrics_json_and_calibration_png(trained: Trained, tmp_
     )
     assert set(metrics["pr_auc"]["test"]) == {"lightgbm", "logistic", "no_skill"}
     assert "oversamples" in metrics["prevalence_note"]
+    for word in ("latest version", "eligibility criteria", "site list", "ESTIMATED"):
+        assert word in metrics["soft_leak_note"]
+    note = metrics["calibration_note"]
+    assert "No recalibration" in note["recalibration"]
+    for cohort in ("val", "test"):
+        assert 0.0 < note["cohorts"][cohort]["mean_predicted"] < 1.0
+        assert 0.0 < note["cohorts"][cohort]["observed_rate"] < 1.0
+    assert note["cohorts"]["test"]["observed_rate"] == metrics["split"]["positive_rate"]["test"]
     assert (
         metrics["global_shap_test"][0]["mean_abs_shap"]
         >= metrics["global_shap_test"][-1]["mean_abs_shap"]

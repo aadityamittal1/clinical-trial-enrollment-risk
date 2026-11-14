@@ -79,6 +79,12 @@ LEAKAGE_PATTERNS: tuple[str, ...] = (
     r"status",  # overall status is the outcome
     r"outcome",
     r"^label$",
+    r"end_?(date|year)",  # study / primary end dates
+    r"actual",  # *_actual* values only exist once the trial has run
+    r"terminat",
+    r"withdraw",
+    r"stop_?reason",
+    r"days_to_",  # durations measured to an end event
 )
 _LEAKAGE_RE = re.compile("|".join(f"(?:{p})" for p in LEAKAGE_PATTERNS), re.IGNORECASE)
 
@@ -108,6 +114,36 @@ def select_sql(columns: Sequence[str] = FEATURES, where: str | None = None) -> s
     if where:
         sql += f" {where}"
     return sql
+
+
+NCT_ID_RE = re.compile(r"NCT[0-9]{8}")
+
+
+def validate_nct_ids(nct_ids: Iterable[str]) -> list[str]:
+    """Distinct ids in input order; ValueError unless every id is "NCT" + 8 digits."""
+    ids: list[str] = []
+    for value in nct_ids:
+        if not isinstance(value, str) or NCT_ID_RE.fullmatch(value) is None:
+            raise ValueError(f"invalid NCT id {value!r}: expected 'NCT' followed by 8 digits")
+        if value not in ids:
+            ids.append(value)
+    return ids
+
+
+def load_features(warehouse: Warehouse, nct_ids: Iterable[str]) -> pd.DataFrame:
+    """Raw ml_features rows (nct_id + FEATURES) for the given studies, ordered by nct_id.
+
+    Every id is validated (``NCT`` + exactly 8 ASCII digits) before it reaches SQL, so the literal
+    list cannot carry anything but NCT ids (Warehouse.query_df takes no bind parameters).
+    Unknown ids simply return no row.
+    """
+    ids = validate_nct_ids(nct_ids)
+    if not ids:
+        return warehouse.query_df(select_sql(FEATURES, where="where false"))
+    literals = ", ".join(f"'{i}'" for i in ids)
+    return warehouse.query_df(
+        select_sql(FEATURES, where=f"where f.nct_id in ({literals}) order by f.nct_id")
+    )
 
 
 def load_labelled(warehouse: Warehouse) -> pd.DataFrame:

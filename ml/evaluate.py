@@ -33,7 +33,7 @@ from ml.metrics import (
     plot_calibration,
 )
 from ml.predict import load_model, score_frame
-from ml.split import TEST_END, TRAIN_END, VAL_END, time_split
+from ml.split import TEST_END, TRAIN_END, VAL_END, Split, time_split
 from ml.tracking import configure_mlflow
 
 log = logging.getLogger(__name__)
@@ -42,8 +42,15 @@ DOCS_DIR = Path(__file__).resolve().parents[1] / "docs"
 METRICS_FILE = "model_metrics.json"
 CALIBRATION_FILE = Path("img") / "calibration.png"
 SOFT_LEAK_NOTE = (
-    "n_sites, n_countries and us_only come from the current site list, which can change "
-    "after registration (known soft leak, kept per the spec)."
+    "Every feature is read from the latest version of the study record, not the version "
+    "first registered: arms, interventions, conditions (and their MeSH category), "
+    "eligibility criteria and the age range can all be edited after registration, as can "
+    "the site list behind n_sites, n_countries and us_only (the spec's known soft leak, "
+    "kept on purpose). start_year mixes ACTUAL and ESTIMATED start dates."
+)
+RECALIBRATION_DECISION = (
+    "No recalibration is applied in v1 (controller decision): calibration is to be revisited "
+    "on the full dataset, not on the oversampled sample."
 )
 
 
@@ -65,6 +72,40 @@ def _global_shap(scores: pd.DataFrame) -> list[dict[str, Any]]:
         {"feature": str(f), "mean_abs_shap": float(v), "mean_shap": float(mean[str(f)])}
         for f, v in mean_abs.items()
     ]
+
+
+def _calibration_note(
+    split: Split, run_metrics: dict[str, float], test: dict[str, float]
+) -> dict[str, Any]:
+    """Mean predicted vs observed positive rate on validation and test, and the v1 decision."""
+    val_observed = float(split.val[LABEL_COLUMN].mean()) if len(split.val) else None
+    cohorts: dict[str, dict[str, float | None]] = {
+        "val": {
+            "mean_predicted": run_metrics.get("lightgbm_val_mean_predicted"),
+            "observed_rate": val_observed,
+        },
+        "test": {
+            "mean_predicted": test["mean_predicted"],
+            "observed_rate": test["no_skill_pr_auc"],
+        },
+    }
+    low = []
+    for name, c in cohorts.items():
+        predicted, observed = c["mean_predicted"], c["observed_rate"]
+        if predicted is not None and observed is not None and predicted < observed:
+            low.append(name)
+    summary = (
+        f"Predicted probabilities ran low on the {' and '.join(low)} cohort(s): mean predicted "
+        "below the observed positive rate."
+        if low
+        else "Mean predicted probability was not below the observed rate on val or test."
+    )
+    return {
+        "summary": summary,
+        "cohorts": cohorts,
+        "recalibration": RECALIBRATION_DECISION,
+        "prevalence_note": PREVALENCE_NOTE,
+    }
 
 
 def evaluate(settings: Settings | None = None, out_dir: Path = DOCS_DIR) -> dict[str, Any]:
@@ -132,6 +173,7 @@ def evaluate(settings: Settings | None = None, out_dir: Path = DOCS_DIR) -> dict
             "no_skill": pick("no_skill_"),
         },
         "calibration_test": {"n_bins": N_CALIBRATION_BINS, "strategy": "quantile", "bins": bins},
+        "calibration_note": _calibration_note(split, run_metrics, test),
         "global_shap_test": _global_shap(scores),
         "features": {
             "categorical": list(CATEGORICAL_FEATURES),

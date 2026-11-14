@@ -4,6 +4,13 @@ Local default: ``sqlite:///data/mlflow/mlflow.db`` with artifacts in ``data/mlfl
 (both git-ignored). The parent directory is created on first use, and the experiment is
 created with an explicit artifact location so nothing lands in a stray ``./mlruns``.
 For a remote tracking server (http/https) the server decides where artifacts go.
+
+Portability: MLflow stores the experiment's artifact root as an *absolute* ``file://`` URI
+in the sqlite DB when the experiment is created (and each logged model's location under
+it). A ``data/mlflow`` directory copied to another machine or container therefore only
+works if it is mounted at the same absolute path; otherwise loading a model fails because
+its artifacts are looked up at the original path. Use a tracking server (or recreate the
+store by retraining) when the path differs.
 """
 
 from pathlib import Path

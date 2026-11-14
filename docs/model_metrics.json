@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-11-14T23:37:29+00:00",
+  "generated_at": "2026-11-14T23:54:02+00:00",
   "model_name": "trial-risk-lgbm",
   "model_version": "1",
-  "run_id": "a8d510b2d5c64a299e77524f86ae684d",
+  "run_id": "7bfd12b83a224a67852a7acab5ff0b2b",
   "prevalence_note": "The sample snapshot oversamples terminated trials, so positive rates, PR-AUC values and absolute probabilities do not reflect real-world prevalence.",
-  "soft_leak_note": "n_sites, n_countries and us_only come from the current site list, which can change after registration (known soft leak, kept per the spec).",
+  "soft_leak_note": "Every feature is read from the latest version of the study record, not the version first registered: arms, interventions, conditions (and their MeSH category), eligibility criteria and the age range can all be edited after registration, as can the site list behind n_sites, n_countries and us_only (the spec's known soft leak, kept on purpose). start_year mixes ACTUAL and ESTIMATED start dates.",
   "split": {
     "by": "start_year",
     "train": "<= 2016",
@@ -12,86 +12,86 @@
     "test": "2019-2020",
     "dropped": "> 2020 or missing start_year",
     "sizes": {
-      "train": 1171,
-      "val": 262,
-      "test": 258
+      "train": 1168,
+      "val": 260,
+      "test": 252
     },
     "positive_rate": {
-      "train": 0.15456874466268147,
-      "val": 0.16030534351145037,
-      "test": 0.14728682170542637
+      "train": 0.1523972602739726,
+      "val": 0.15384615384615385,
+      "test": 0.12698412698412698
     }
   },
   "test_registered_model": {
-    "pr_auc": 0.4250870633769325,
-    "no_skill_pr_auc": 0.14728682170542637,
-    "roc_auc": 0.7421052631578947,
-    "brier": 0.11060579114744198,
-    "log_loss": 0.3760899363873848,
-    "mean_predicted": 0.10043271394383835,
-    "n": 258.0,
-    "n_positive": 38.0,
-    "ece": 0.06059369274537583
+    "pr_auc": 0.41211671402352884,
+    "no_skill_pr_auc": 0.12698412698412698,
+    "roc_auc": 0.7576704545454545,
+    "brier": 0.09564187182491256,
+    "log_loss": 0.3286406434398017,
+    "mean_predicted": 0.10068767280369356,
+    "n": 252.0,
+    "n_positive": 32.0,
+    "ece": 0.03171153272128411
   },
   "test_matches_training_run": true,
   "pr_auc": {
     "train": {
-      "lightgbm": 0.945110004207648,
-      "logistic": 0.5532087193158769,
-      "no_skill": 0.15456874466268147
+      "lightgbm": 0.9474214846812887,
+      "logistic": 0.5596148262127749,
+      "no_skill": 0.1523972602739726
     },
     "val": {
-      "lightgbm": 0.3164557613792414,
-      "logistic": 0.287416866770827,
-      "no_skill": 0.16030534351145037
+      "lightgbm": 0.3160751940536533,
+      "logistic": 0.30631975107276166,
+      "no_skill": 0.15384615384615385
     },
     "test": {
-      "lightgbm": 0.4250870633769325,
-      "logistic": 0.4551708536398597,
-      "no_skill": 0.14728682170542637
+      "lightgbm": 0.41211671402352884,
+      "logistic": 0.4305316783383899,
+      "no_skill": 0.12698412698412698
     }
   },
   "training_run_metrics": {
     "lightgbm": {
-      "lightgbm_test_brier": 0.11060579114744198,
-      "lightgbm_test_ece": 0.06059369274537583,
-      "lightgbm_test_log_loss": 0.3760899363873848,
-      "lightgbm_test_mean_predicted": 0.10043271394383835,
-      "lightgbm_test_pr_auc": 0.4250870633769325,
-      "lightgbm_test_roc_auc": 0.7421052631578947,
-      "lightgbm_train_brier": 0.05004138329669904,
-      "lightgbm_train_log_loss": 0.18500441689369504,
-      "lightgbm_train_mean_predicted": 0.15374807795811316,
-      "lightgbm_train_pr_auc": 0.945110004207648,
-      "lightgbm_train_roc_auc": 0.9891288576371449,
-      "lightgbm_val_brier": 0.1324638749375465,
-      "lightgbm_val_log_loss": 0.4382144663624177,
-      "lightgbm_val_mean_predicted": 0.1174006797519489,
-      "lightgbm_val_pr_auc": 0.3164557613792414,
-      "lightgbm_val_roc_auc": 0.6957792207792208
+      "lightgbm_test_brier": 0.09564187182491256,
+      "lightgbm_test_ece": 0.03171153272128411,
+      "lightgbm_test_log_loss": 0.3286406434398017,
+      "lightgbm_test_mean_predicted": 0.10068767280369356,
+      "lightgbm_test_pr_auc": 0.41211671402352884,
+      "lightgbm_test_roc_auc": 0.7576704545454545,
+      "lightgbm_train_brier": 0.04960573028147543,
+      "lightgbm_train_log_loss": 0.1842793881734236,
+      "lightgbm_train_mean_predicted": 0.15180712620435252,
+      "lightgbm_train_pr_auc": 0.9474214846812887,
+      "lightgbm_train_roc_auc": 0.9887413460447169,
+      "lightgbm_val_brier": 0.1251218804622332,
+      "lightgbm_val_log_loss": 0.40966829710055874,
+      "lightgbm_val_mean_predicted": 0.11672757619066822,
+      "lightgbm_val_pr_auc": 0.3160751940536533,
+      "lightgbm_val_roc_auc": 0.7222727272727273
     },
     "logistic": {
-      "logistic_test_brier": 0.1083143548795312,
-      "logistic_test_ece": 0.05534247804490018,
-      "logistic_test_log_loss": 0.369712509839334,
-      "logistic_test_mean_predicted": 0.11440772903555384,
-      "logistic_test_pr_auc": 0.4551708536398597,
-      "logistic_test_roc_auc": 0.7358851674641148,
-      "logistic_train_brier": 0.09821505959480503,
-      "logistic_train_log_loss": 0.32661877685754337,
-      "logistic_train_mean_predicted": 0.154546740980951,
-      "logistic_train_pr_auc": 0.5532087193158769,
-      "logistic_train_roc_auc": 0.8231932585523745,
-      "logistic_val_brier": 0.1337925046959566,
-      "logistic_val_log_loss": 0.42854595671537116,
-      "logistic_val_mean_predicted": 0.1344586609537862,
-      "logistic_val_pr_auc": 0.287416866770827,
-      "logistic_val_roc_auc": 0.707034632034632
+      "logistic_test_brier": 0.09264743800122559,
+      "logistic_test_ece": 0.053306048469729264,
+      "logistic_test_log_loss": 0.3134013361404628,
+      "logistic_test_mean_predicted": 0.11585697950456664,
+      "logistic_test_pr_auc": 0.4305316783383899,
+      "logistic_test_roc_auc": 0.7775568181818182,
+      "logistic_train_brier": 0.09637875272483014,
+      "logistic_train_log_loss": 0.32260746852009653,
+      "logistic_train_mean_predicted": 0.1523784459933695,
+      "logistic_train_pr_auc": 0.5596148262127749,
+      "logistic_train_roc_auc": 0.8246453297015095,
+      "logistic_val_brier": 0.12360056236593424,
+      "logistic_val_log_loss": 0.3940713177833002,
+      "logistic_val_mean_predicted": 0.13535674647527776,
+      "logistic_val_pr_auc": 0.30631975107276166,
+      "logistic_val_roc_auc": 0.7376136363636363
     },
     "no_skill": {
-      "no_skill_test_pr_auc": 0.14728682170542637,
-      "no_skill_train_pr_auc": 0.15456874466268147,
-      "no_skill_val_pr_auc": 0.16030534351145037
+      "no_skill_test_pr_auc": 0.12698412698412698,
+      "no_skill_train_pr_auc": 0.1523972602739726,
+      "no_skill_val_pr_auc": 0.15384615384615385
     }
   },
   "calibration_test": {
@@ -99,198 +99,213 @@
     "strategy": "quantile",
     "bins": [
       {
-        "mean_predicted": 0.014307034343373338,
-        "observed_rate": 0.030303030303030304,
-        "count": 33.0,
-        "p_min": 0.007728354904292901,
-        "p_max": 0.019831564368998026
-      },
-      {
-        "mean_predicted": 0.024935731352259145,
-        "observed_rate": 0.0625,
-        "count": 32.0,
-        "p_min": 0.019949634903857198,
-        "p_max": 0.030653321964981987
-      },
-      {
-        "mean_predicted": 0.03709129472516592,
-        "observed_rate": 0.09375,
-        "count": 32.0,
-        "p_min": 0.03163836878185431,
-        "p_max": 0.042191735301518915
-      },
-      {
-        "mean_predicted": 0.05047619192718995,
+        "mean_predicted": 0.013029307083754365,
         "observed_rate": 0.0,
         "count": 32.0,
-        "p_min": 0.04255434712083007,
-        "p_max": 0.05957819416380991
+        "p_min": 0.006802051281554698,
+        "p_max": 0.018319367475843267
       },
       {
-        "mean_predicted": 0.07107388595773884,
-        "observed_rate": 0.1875,
+        "mean_predicted": 0.025004111631018667,
+        "observed_rate": 0.06451612903225806,
+        "count": 31.0,
+        "p_min": 0.018438953575913023,
+        "p_max": 0.030863367984807873
+      },
+      {
+        "mean_predicted": 0.03704224434755206,
+        "observed_rate": 0.0625,
         "count": 32.0,
-        "p_min": 0.05960682933318307,
-        "p_max": 0.08489648467094837
+        "p_min": 0.03129631934675478,
+        "p_max": 0.04309640844920807
       },
       {
-        "mean_predicted": 0.10333140300075955,
-        "observed_rate": 0.21875,
-        "count": 32.0,
-        "p_min": 0.08675085921450038,
-        "p_max": 0.12755763944514475
+        "mean_predicted": 0.048428140086640994,
+        "observed_rate": 0.06451612903225806,
+        "count": 31.0,
+        "p_min": 0.04314748692009046,
+        "p_max": 0.05561939545386698
       },
       {
-        "mean_predicted": 0.1611615100387047,
+        "mean_predicted": 0.07001381843042119,
+        "observed_rate": 0.12903225806451613,
+        "count": 31.0,
+        "p_min": 0.057861610248909255,
+        "p_max": 0.08805848953230283
+      },
+      {
+        "mean_predicted": 0.10246395090709211,
         "observed_rate": 0.15625,
         "count": 32.0,
-        "p_min": 0.1282040821591845,
-        "p_max": 0.19768419095461873
+        "p_min": 0.08812152662387997,
+        "p_max": 0.12788395254006654
       },
       {
-        "mean_predicted": 0.3364020460642665,
-        "observed_rate": 0.42424242424242425,
-        "count": 33.0,
-        "p_min": 0.19796458069534492,
-        "p_max": 0.6674581104799477
+        "mean_predicted": 0.16985038933764673,
+        "observed_rate": 0.16129032258064516,
+        "count": 31.0,
+        "p_min": 0.12942241944791164,
+        "p_max": 0.21744739978083402
+      },
+      {
+        "mean_predicted": 0.3368739758638898,
+        "observed_rate": 0.375,
+        "count": 32.0,
+        "p_min": 0.22030224048817046,
+        "p_max": 0.750745796065972
       }
     ]
+  },
+  "calibration_note": {
+    "summary": "Predicted probabilities ran low on the val and test cohort(s): mean predicted below the observed positive rate.",
+    "cohorts": {
+      "val": {
+        "mean_predicted": 0.11672757619066822,
+        "observed_rate": 0.15384615384615385
+      },
+      "test": {
+        "mean_predicted": 0.10068767280369356,
+        "observed_rate": 0.12698412698412698
+      }
+    },
+    "recalibration": "No recalibration is applied in v1 (controller decision): calibration is to be revisited on the full dataset, not on the oversampled sample.",
+    "prevalence_note": "The sample snapshot oversamples terminated trials, so positive rates, PR-AUC values and absolute probabilities do not reflect real-world prevalence."
   },
   "global_shap_test": [
     {
       "feature": "condition_category",
-      "mean_abs_shap": 0.42414844961240306,
-      "mean_shap": -0.09205073643410852
-    },
-    {
-      "feature": "phase",
-      "mean_abs_shap": 0.26046315891472865,
-      "mean_shap": -0.08253507364341084
+      "mean_abs_shap": 0.41155997619047624,
+      "mean_shap": -0.09414320634920635
     },
     {
       "feature": "healthy_volunteers",
-      "mean_abs_shap": 0.24864667441860464,
-      "mean_shap": -0.024957534883720933
-    },
-    {
-      "feature": "max_age_years",
-      "mean_abs_shap": 0.2358677635658915,
-      "mean_shap": 0.016061027131782948
+      "mean_abs_shap": 0.33046165476190476,
+      "mean_shap": -0.028535099206349203
     },
     {
       "feature": "us_only",
-      "mean_abs_shap": 0.18479668992248058,
-      "mean_shap": -0.018615604651162784
+      "mean_abs_shap": 0.24639988095238097,
+      "mean_shap": -0.02977031746031746
+    },
+    {
+      "feature": "phase",
+      "mean_abs_shap": 0.24075146825396826,
+      "mean_shap": -0.07239140476190474
+    },
+    {
+      "feature": "max_age_years",
+      "mean_abs_shap": 0.22155065873015875,
+      "mean_shap": 0.016751142857142857
     },
     {
       "feature": "n_sites",
-      "mean_abs_shap": 0.16054063565891472,
-      "mean_shap": 0.010814511627906975
-    },
-    {
-      "feature": "n_inclusion_criteria",
-      "mean_abs_shap": 0.14903654651162793,
-      "mean_shap": -0.010957422480620154
-    },
-    {
-      "feature": "sponsor_class",
-      "mean_abs_shap": 0.14894694186046512,
-      "mean_shap": -0.019363104651162793
+      "mean_abs_shap": 0.17278956746031748,
+      "mean_shap": 0.0070759880952380935
     },
     {
       "feature": "criteria_text_length",
-      "mean_abs_shap": 0.1478930542635659,
-      "mean_shap": 0.03150080620155039
-    },
-    {
-      "feature": "has_drug",
-      "mean_abs_shap": 0.11309632170542637,
-      "mean_shap": -0.027186647286821707
+      "mean_abs_shap": 0.15518469444444447,
+      "mean_shap": 0.0014691785714285707
     },
     {
       "feature": "n_exclusion_criteria",
-      "mean_abs_shap": 0.10680597674418606,
-      "mean_shap": -0.007821534883720931
+      "mean_abs_shap": 0.13948759523809526,
+      "mean_shap": -0.0009785476190476198
+    },
+    {
+      "feature": "n_inclusion_criteria",
+      "mean_abs_shap": 0.13345848015873013,
+      "mean_shap": -0.019085567460317455
     },
     {
       "feature": "sex",
-      "mean_abs_shap": 0.10550197674418604,
-      "mean_shap": -0.011652077519379845
+      "mean_abs_shap": 0.12984924206349208,
+      "mean_shap": -0.01083159126984127
     },
     {
-      "feature": "start_year",
-      "mean_abs_shap": 0.08283053875968993,
-      "mean_shap": -0.07374212015503875
-    },
-    {
-      "feature": "min_age_years",
-      "mean_abs_shap": 0.07971838759689921,
-      "mean_shap": -0.002489015503875969
+      "feature": "sponsor_class",
+      "mean_abs_shap": 0.10675244841269842,
+      "mean_shap": -0.013770384920634919
     },
     {
       "feature": "has_dmc",
-      "mean_abs_shap": 0.07798367829457363,
-      "mean_shap": -0.018758158914728686
+      "mean_abs_shap": 0.09230110714285714,
+      "mean_shap": -0.021781511904761904
+    },
+    {
+      "feature": "min_age_years",
+      "mean_abs_shap": 0.08872238095238097,
+      "mean_shap": 0.003300682539682537
     },
     {
       "feature": "has_device",
-      "mean_abs_shap": 0.06953303875968991,
-      "mean_shap": 0.012735193798449613
+      "mean_abs_shap": 0.07214515476190476,
+      "mean_shap": 0.009434043650793653
     },
     {
-      "feature": "allocation",
-      "mean_abs_shap": 0.06851255813953488,
-      "mean_shap": 0.0027754728682170536
+      "feature": "has_drug",
+      "mean_abs_shap": 0.0638135238095238,
+      "mean_shap": -0.01186773015873016
     },
     {
-      "feature": "masking",
-      "mean_abs_shap": 0.05558949612403101,
-      "mean_shap": 0.002656550387596899
-    },
-    {
-      "feature": "has_biological",
-      "mean_abs_shap": 0.04809558914728682,
-      "mean_shap": 0.0019163178294573661
+      "feature": "start_year",
+      "mean_abs_shap": 0.05481594841269841,
+      "mean_shap": -0.04091365476190477
     },
     {
       "feature": "has_behavioral",
-      "mean_abs_shap": 0.04662159689922481,
-      "mean_shap": -0.006520503875968992
+      "mean_abs_shap": 0.054061035714285714,
+      "mean_shap": -0.0054792103174603176
     },
     {
       "feature": "n_conditions",
-      "mean_abs_shap": 0.04631596511627906,
-      "mean_shap": -0.0012346085271317826
+      "mean_abs_shap": 0.05393638492063492,
+      "mean_shap": -0.006469789682539683
+    },
+    {
+      "feature": "masking",
+      "mean_abs_shap": 0.052451309523809525,
+      "mean_shap": 0.0020807619047619056
+    },
+    {
+      "feature": "allocation",
+      "mean_abs_shap": 0.046810170634920635,
+      "mean_shap": 0.0010082341269841272
     },
     {
       "feature": "has_procedure",
-      "mean_abs_shap": 0.04464962790697675,
-      "mean_shap": -0.010629100775193799
+      "mean_abs_shap": 0.04625262301587301,
+      "mean_shap": -0.011269083333333332
     },
     {
-      "feature": "n_collaborators",
-      "mean_abs_shap": 0.025923596899224806,
-      "mean_shap": -0.000489674418604651
+      "feature": "has_biological",
+      "mean_abs_shap": 0.03964001190476191,
+      "mean_shap": 0.0023112499999999995
     },
     {
       "feature": "n_arms",
-      "mean_abs_shap": 0.02439382170542636,
-      "mean_shap": 0.001416139534883721
+      "mean_abs_shap": 0.03775963492063492,
+      "mean_shap": 0.0036742619047619054
+    },
+    {
+      "feature": "n_collaborators",
+      "mean_abs_shap": 0.028268349206349207,
+      "mean_shap": -0.0016872539682539678
     },
     {
       "feature": "n_countries",
-      "mean_abs_shap": 0.017395992248062014,
-      "mean_shap": 0.0021771937984496124
+      "mean_abs_shap": 0.019088166666666666,
+      "mean_shap": -0.00331852380952381
     },
     {
       "feature": "has_other_intervention",
-      "mean_abs_shap": 0.013233213178294572,
-      "mean_shap": 0.00040649224806201553
+      "mean_abs_shap": 0.011576162698412698,
+      "mean_shap": 0.0016549880952380954
     },
     {
       "feature": "primary_purpose",
-      "mean_abs_shap": 0.013064717054263566,
-      "mean_shap": 0.0020980116279069767
+      "mean_abs_shap": 0.0073027976190476185,
+      "mean_shap": -3.1468253968252946e-06
     }
   ],
   "features": {

@@ -68,6 +68,17 @@ def test_spec_features_are_present() -> None:
         "overall_status",
         "outcome_class",
         "label",
+        "end_date",
+        "study_end_year",
+        "start_date_actual",
+        "enrollment_actual",
+        "is_terminated",
+        "termination_reason",
+        "withdrawn_flag",
+        "withdrawal_date",
+        "stop_reason",
+        "days_to_completion",
+        "days_to_first_site",
     ],
 )
 def test_leakage_guard_rejects_outcome_columns(column: str) -> None:
