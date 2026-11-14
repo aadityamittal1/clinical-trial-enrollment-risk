@@ -5,7 +5,7 @@ Not executed by the authors; validated only by tests/dags/test_dag_static.py (as
 
 Settings come from Airflow Variables, then environment, then defaults:
   TRIAL_RISK_NAMESPACE (trial-risk), TRIAL_RISK_PIPELINE_IMAGE
-  (ghcr.io/OWNER/trial-risk-pipeline:latest), TRIAL_RISK_MODE (local|cloud).
+  (trial-risk-pipeline:local in local mode, ghcr.io/OWNER/trial-risk-pipeline:latest otherwise), TRIAL_RISK_MODE (local|cloud).
 When the mode is "local" the PVC `trial-risk-warehouse` is mounted at /data so
 all pods share the DuckDB file.
 """
@@ -26,8 +26,11 @@ def _setting(name: str, default: str) -> str:
 
 
 NAMESPACE = _setting("TRIAL_RISK_NAMESPACE", "trial-risk")
-IMAGE = _setting("TRIAL_RISK_PIPELINE_IMAGE", "ghcr.io/OWNER/trial-risk-pipeline:latest")
 MODE = _setting("TRIAL_RISK_MODE", "local")
+IMAGE = _setting(
+    "TRIAL_RISK_PIPELINE_IMAGE",
+    "trial-risk-pipeline:local" if MODE == "local" else "ghcr.io/OWNER/trial-risk-pipeline:latest",
+)
 DBT_TARGET = "local" if MODE == "local" else "cloud"
 
 ENV_FROM = [
@@ -63,12 +66,13 @@ def _pod(task_id: str, cmds: list[str]) -> KubernetesPodOperator:
         name=task_id.replace("_", "-"),
         namespace=NAMESPACE,
         image=IMAGE,
+        image_pull_policy="IfNotPresent",
         cmds=cmds,
         env_from=ENV_FROM,
         volumes=VOLUMES,
         volume_mounts=VOLUME_MOUNTS,
         get_logs=True,
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
     )
 
 

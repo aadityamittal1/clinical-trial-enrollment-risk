@@ -34,11 +34,23 @@ def test_task_ids_and_commands() -> None:
     }
     assert pods["ingest_ctgov"] == ["python", "-m", "ingestion", "ctgov"]
     assert pods["ingest_fda"] == ["python", "-m", "ingestion", "fda"]
-    assert pods["load_raw"][:4] == ["python", "-m", "ingestion", "load"]
-    assert pods["dbt_build"][:2] == ["dbt", "build"]
-    assert "--project-dir" in pods["dbt_build"] and "--profiles-dir" in pods["dbt_build"]
+    assert pods["load_raw"] == ["python", "-m", "ingestion", "load", "--source", "landing"]
+    base = ["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt", "--target", "<expr>"]
+    assert pods["dbt_build"] == base
+    assert pods["refresh_marts"] == [*base, "--select", "marts"]
     assert pods["score"] == ["python", "-m", "ml", "score"]
     assert pods["train"] == ["python", "-m", "ml", "train"]
+
+
+def test_dbt_target_expression() -> None:
+    assert 'DBT_TARGET = "local" if MODE == "local" else "cloud"' in DAG_SRC
+
+
+def test_image_and_pod_settings() -> None:
+    assert '"trial-risk-pipeline:local" if MODE == "local"' in DAG_SRC
+    assert 'image_pull_policy="IfNotPresent"' in DAG_SRC
+    assert 'on_finish_action="delete_pod"' in DAG_SRC
+    assert "is_delete_operator_pod" not in DAG_SRC
 
 
 def test_order() -> None:
@@ -86,7 +98,9 @@ def test_ci_jobs() -> None:
     assert "python -m pipeline run --source sample" in fast
     assert "pytest tests/ml -k smoke" in fast
     assert "kind" not in fast
-    assert "deploy/local-up.sh" in str(wf["jobs"]["kind-e2e"])
+    kind = str(wf["jobs"]["kind-e2e"])
+    assert "deploy/local-up.sh" in kind
+    assert "kubectl wait" in kind and "kubectl get pods" in kind and "-n trial-risk" in kind
 
 
 def test_cd_jobs() -> None:
@@ -96,7 +110,10 @@ def test_cd_jobs() -> None:
     assert "CLOUD_MODE_UP" in wf["jobs"]["deploy-aks"]["if"]
     assert wf["jobs"]["deploy-aks"]["needs"] == "push-images"
     assert "helm upgrade" in str(wf["jobs"]["deploy-aks"])
-    assert "ghcr.io/${{ github.repository_owner }}/trial-risk-pipeline" in str(wf)
+    assert "ghcr.io/${{ env.OWNER }}/trial-risk-pipeline" in str(wf)
+    assert "${GITHUB_REPOSITORY_OWNER,,}" in str(wf)
+    deploy = str(wf["jobs"]["deploy-aks"])
+    assert "images.pipeline.tag=" in deploy and "images.serving.repository=" in deploy
 
 
 def test_no_literal_secrets() -> None:

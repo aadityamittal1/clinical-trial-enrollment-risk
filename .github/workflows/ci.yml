@@ -60,8 +60,19 @@ jobs:
           cluster_name: trial-risk
           config: deploy/kind/cluster.yaml
       - run: uv sync
+      - name: Build and load local images into kind
+        # deploy/local-up.sh may also do this; repeating it is harmless.
+        run: |
+          docker build -f deploy/docker/pipeline.Dockerfile -t trial-risk-pipeline:local .
+          docker build -f deploy/docker/serving.Dockerfile -t trial-risk-serving:local .
+          kind load docker-image trial-risk-pipeline:local trial-risk-serving:local --name trial-risk
       - name: Bring up the stack on kind
         run: bash deploy/local-up.sh
+      - name: Wait for the stack in the cluster
+        run: |
+          kubectl get pods -n trial-risk
+          kubectl wait --for=condition=Available deployment --all -n trial-risk --timeout=300s
+          kubectl get pods -n trial-risk -o wide
       - name: Pipeline on the sample snapshot
         run: uv run python -m pipeline run --source sample
       - name: dbt tests
