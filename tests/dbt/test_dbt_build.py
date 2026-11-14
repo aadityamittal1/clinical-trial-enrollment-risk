@@ -269,11 +269,8 @@ TRICKY_NAMES = [
 ]
 
 
-def test_canonical_drug_name_macro_on_edge_cases(built: Built) -> None:
-    values = ", ".join(
-        "('" + v.replace("'", "''") + "', " + str(i) + ")" for i, v in enumerate(TRICKY_NAMES)
-    )
-    sql = "select i, {{ canonical_drug_name('v') }} as c from (values " + values + ") as t(v, i)"
+def _show(built: Built, sql: str) -> list[dict[str, Any]]:
+    """Run an inline query through `dbt show` (so macros render) and return its rows."""
     proc = _dbt(
         ["show", "--inline", sql, "--output", "json", "--log-format", "json", "--limit", "-1"],
         built.work,
@@ -289,9 +286,152 @@ def test_canonical_drug_name_macro_on_edge_cases(built: Built) -> None:
         if event.get("info", {}).get("name") == "ShowNode":
             preview = json.loads(event["data"]["preview"])
     assert preview is not None, _tail(proc)
-    got = {row["i"]: row["c"] for row in preview}
+    rows: list[dict[str, Any]] = preview
+    return rows
+
+
+def _values(texts: list[str | None]) -> str:
+    def lit(v: str | None) -> str:
+        return "cast(null as varchar)" if v is None else "'" + v.replace("'", "''") + "'"
+
+    return ", ".join(f"({lit(v)}, {i})" for i, v in enumerate(texts))
+
+
+def test_canonical_drug_name_macro_on_edge_cases(built: Built) -> None:
+    sql = (
+        "select i, {{ canonical_drug_name('v') }} as c from (values "
+        + _values(list(TRICKY_NAMES))
+        + ") as t(v, i)"
+    )
+    got = {row["i"]: row["c"] for row in _show(built, sql)}
     expected = {i: canonical_drug_name(v) for i, v in enumerate(TRICKY_NAMES)}
     assert got == expected
+
+
+LOW = "terminated_low_enrollment"
+OTHER = "terminated_other"
+# why_stopped of a TERMINATED study -> expected outcome_class (macros/low_enrollment.sql).
+WHY_STOPPED_CASES: list[tuple[str | None, str]] = [
+    # bare stem used without a shortfall: excluded
+    ("Stage 1 accrual completed. Study did not proceed to Stage 2 accrual.", OTHER),
+    (
+        "Sponsor stopped the study after meeting enrollment targets and primary objectives, "
+        "and after collecting sufficient data for planned regulatory filings.",
+        OTHER,
+    ),
+    (
+        "Phase 3 study was stopped due to futility of efficacy at interim analysis, "
+        "Pfizer decided stopping enrollment in the B9991030 study on 19Mar2019.",
+        OTHER,
+    ),
+    (
+        "The enrolment was prematurely terminated after the planned monitoring of the first 5 "
+        "patients because of an unacceptable level of relevant toxicities.",
+        OTHER,
+    ),
+    (
+        "Study was ended prematurely due to lack of efficacy. As per FDA guidance, our site "
+        "continued to follow enrolled subjects through the 180 day safety visit.",
+        OTHER,
+    ),
+    ("Primary investigator left program: unable to recruit a replacement", OTHER),
+    (
+        "Interim analysis planned as per protocol didn't provide positive outcome therefore "
+        "enrollment was not reopened. However, the enrolled patients concluded therapy.",
+        OTHER,
+    ),
+    (
+        "Study recruitment was suspended due to interruption of in-person testing after the "
+        "start of the COVID19 pandemic in March 2020.",
+        OTHER,
+    ),
+    (
+        "Due to the COVID-19 pandemic, the recruitment of new subjects was temporarily halted "
+        "in March 2020. The study was permanently discontinued in December 2020.",
+        OTHER,
+    ),
+    (
+        "The study procedures and enrollment were stopped due to COVID-19 restrictions on "
+        "non-essential research.",
+        OTHER,
+    ),
+    ("Departure of the investigator who was recruiting subjects", OTHER),
+    (
+        "A preliminary analysis was performed in this study halfway through enrollment and "
+        "significant results were found, therefore the study was stopped.",
+        OTHER,
+    ),
+    (
+        "Per protocol, Phase II is to be terminated early if less than 5% respond in the "
+        "first 23 participants enrolled to Phase II.",
+        OTHER,
+    ),
+    (
+        "Pfizer has decided to perform the pre-specified final analysis at the current "
+        "enrollment using a re-estimation of the sample size.",
+        OTHER,
+    ),
+    # no enrollment content at all
+    ("Lack of funding", OTHER),
+    ("Sponsor decision", OTHER),
+    ("Futility", OTHER),
+    ("Toxicity", OTHER),
+    ("PI left institution", OTHER),
+    ("Only 1 control subject was tested, no analyzable data.", OTHER),
+    (None, OTHER),
+    # shortfall stated: positive even when an exclusion shape also occurs
+    ("Poor accrual", LOW),
+    ("Slow enrollment", LOW),
+    ("Low recruitment rate", LOW),
+    ("Unable to enroll patients, no longer at institution.", LOW),
+    ("Lack of recruitment.", LOW),
+    ("Recruitment difficulties", LOW),
+    ("The recuiting was to slow to complete the study", LOW),
+    ("Enrollment target not reached", LOW),
+    ("Did not reach the enrollment goal.", LOW),
+    ("We were unable to meet our enrollment goal necessary to analyze the outcome measures.", LOW),
+    ("Not enough patients", LOW),
+    ("Insufficient number of participants.", LOW),
+    ("Inadequate recruitment numbers", LOW),
+    ("Lack of new inclusions due to a significant change in surgery technique.", LOW),
+    ("Only two subjects have been recruited from start of the study.", LOW),
+    (
+        "The study was terminated following a strategic decision to halt recruitment due to "
+        "persistently slow enrollment.",
+        LOW,
+    ),
+    (
+        "Enrollment in the study was prematurely terminated due to recruitment challenges and "
+        "not due to concerns of safety for the participants.",
+        LOW,
+    ),
+    ("Study was halted early after 63 subjects were enrolled due to slow accrual.", LOW),
+    ("very low enrolled participants", LOW),
+    (
+        "Unble to complete all arms of the planned study due to Covid stoppage and difficulty "
+        "with recruiting and getting enrolled participants to return post Covid.",
+        LOW,
+    ),
+    ("End of funds before obtaining the planned number of patients.", LOW),
+    ("Due to a decrease in scheduled study-eligible patients, we terminated the study", LOW),
+    ("Due to difficulties in obtaining consent because of emergency situation", LOW),
+]
+
+
+def test_low_enrollment_rule_on_why_stopped_table(built: Built) -> None:
+    texts = [text for text, _ in WHY_STOPPED_CASES]
+    sql = (
+        "select i, case when coalesce({{ is_low_enrollment('v') }}, false) "
+        "then 'terminated_low_enrollment' else 'terminated_other' end as c "
+        "from (values " + _values(texts) + ") as t(v, i)"
+    )
+    got = {row["i"]: row["c"] for row in _show(built, sql)}
+    wrong = [
+        (text, expected, got.get(i))
+        for i, (text, expected) in enumerate(WHY_STOPPED_CASES)
+        if got.get(i) != expected
+    ]
+    assert wrong == []
 
 
 LEAKY_COLUMNS = (
@@ -326,3 +466,81 @@ def test_select_marts_rebuilds_marts_only(built: Built) -> None:
     assert "staging.stg_studies" not in proc.stdout
     assert "marts.ml_features" in proc.stdout
     assert "marts.ml_scores_latest" in proc.stdout
+
+
+FORBIDDEN_JSON_PATHS = (
+    "enrollmentInfo",
+    "completionDateStruct",
+    "whyStopped",
+    "hasResults",
+    "lastUpdatePost",
+)
+
+
+def _upstream_models(manifest: dict[str, Any], node_id: str) -> set[str]:
+    seen: set[str] = set()
+    todo = [node_id]
+    while todo:
+        for parent in manifest["nodes"][todo.pop()]["depends_on"]["nodes"]:
+            if parent.startswith("model.") and parent not in seen:
+                seen.add(parent)
+                todo.append(parent)
+    return seen
+
+
+def _stg_studies_column_paths() -> dict[str, set[str]]:
+    """stg_studies output column -> JSON paths it is built from (parsed from the model SQL)."""
+    sql = (DBT_DIR / "models" / "staging" / "stg_studies.sql").read_text(encoding="utf-8")
+    extracted_sql, final_sql = sql.split("from latest", 1)
+    alias_paths: dict[str, str] = {}
+    for line in extracted_sql.splitlines():
+        path_m = re.search(r"'study', (?:p ~ )?'([^']+)'", line)
+        alias_m = re.search(r" as (\w+),?$", line)
+        if path_m and alias_m:
+            alias_paths[alias_m.group(1)] = path_m.group(1)
+    assert len(alias_paths) > 20
+    out: dict[str, set[str]] = {}
+    body = final_sql.split("select", 1)[1].split("from extracted", 1)[0]
+    for raw in body.splitlines():
+        line = raw.strip().rstrip(",")
+        if not line:
+            continue
+        expr, _, alias = line.rpartition(" as ")
+        name = alias if expr else line
+        out[name] = {alias_paths[i] for i in re.findall(r"\w+", expr or line) if i in alias_paths}
+    return out
+
+
+def test_ml_features_lineage_reads_no_forbidden_json_path(built: Built) -> None:
+    assert built.build.returncode == 0, _tail(built.build)
+    manifest = json.loads((built.work / "target" / "manifest.json").read_text(encoding="utf-8"))
+    upstream = _upstream_models(manifest, "model.trial_risk.ml_features")
+    names = {manifest["nodes"][n]["name"] for n in upstream}
+    assert {"stg_studies", "stg_interventions", "stg_locations", "stg_conditions"} <= names
+    assert {"int_study_condition_category", "stg_condition_mesh_terms"} <= names
+    assert "fct_trial_outcomes" not in names
+
+    # Whole-file scan of every upstream model except stg_studies, which also feeds the
+    # label and BI and is therefore checked column by column below.
+    for node_id in upstream:
+        node = manifest["nodes"][node_id]
+        if node["name"] == "stg_studies":
+            continue
+        text = (DBT_DIR / node["original_file_path"]).read_text(encoding="utf-8")
+        for path in FORBIDDEN_JSON_PATHS:
+            assert path not in text, (node["name"], path)
+
+    # The stg_studies columns that ml_features reads (its `design` CTE) and their JSON paths.
+    features_sql = (DBT_DIR / "models" / "marts" / "ml_features.sql").read_text(encoding="utf-8")
+    design = features_sql.split("with design as (", 1)[1].split("from {{ ref('stg_studies') }}")[0]
+    read_columns = [c.strip().rstrip(",") for c in design.split("select", 1)[1].splitlines()]
+    read_columns = [c for c in read_columns if c]
+    column_paths = _stg_studies_column_paths()
+    assert column_paths["min_age_years"] == {".eligibilityModule.minimumAge"}
+    assert column_paths["enrollment_count"] == {".designModule.enrollmentInfo.count"}
+    assert len(read_columns) > 10
+    for column in read_columns:
+        assert column in column_paths, column
+        for path in column_paths[column]:
+            for forbidden in FORBIDDEN_JSON_PATHS:
+                assert forbidden not in path, (column, path)

@@ -241,8 +241,9 @@ models:
 
   - name: fct_trial_outcomes
     description: >
-      One row per study with status COMPLETED, TERMINATED or WITHDRAWN: the model label.
-      The low-enrollment rule is macros/low_enrollment.sql.
+      One row per interventional study with status COMPLETED, TERMINATED or WITHDRAWN:
+      the model label. The low-enrollment rule is macros/low_enrollment.sql
+      (shortfall OR (stem AND NOT exclusion)).
     columns:
       - name: nct_id
         description: Study (PK, FK to dim_study).
@@ -285,8 +286,10 @@ models:
     description: >
       One row per study, registration-time features only. Leakage rules: nothing derived
       from enrollment count, completion dates, last-update date, results flags,
-      why_stopped or status. Known soft leak: n_sites / n_countries / us_only use the
-      current site list.
+      why_stopped or status. Known soft leaks: every feature is read from the latest record
+      version, not the version at registration. The site list (n_sites / n_countries /
+      us_only) drifts the most, and arms, interventions, conditions, eligibility criteria
+      and the age range can also have been edited after registration.
     columns:
       - name: nct_id
         description: Study (PK, FK to dim_study).
@@ -311,7 +314,7 @@ models:
       - name: primary_purpose
         description: Primary purpose.
       - name: n_arms
-        description: Number of arm groups (NULL when not reported).
+        description: Number of arm groups (NULL when not reported; latest version, soft leak).
       - name: has_drug
         description: Any DRUG intervention.
         data_tests: [not_null]
@@ -329,8 +332,8 @@ models:
         data_tests: [not_null]
       - name: has_other_intervention
         description: >
-          Any intervention of another type (OTHER, DIETARY_SUPPLEMENT, RADIATION,
-          DIAGNOSTIC_TEST, GENETIC, COMBINATION_PRODUCT, ...).
+          Any intervention of another non-NULL type (OTHER, DIETARY_SUPPLEMENT, RADIATION,
+          DIAGNOSTIC_TEST, GENETIC, COMBINATION_PRODUCT, ...). Latest version, soft leak.
         data_tests: [not_null]
       - name: sponsor_class
         description: Lead sponsor agency class.
@@ -344,9 +347,9 @@ models:
       - name: has_dmc
         description: Data monitoring committee in place (NULL when not reported).
       - name: min_age_years
-        description: Minimum age in years (NULL when not given).
+        description: Minimum age in years (NULL when not given; latest version, soft leak).
       - name: max_age_years
-        description: Maximum age in years (NULL = no upper limit).
+        description: Maximum age in years (NULL = no upper limit; latest version, soft leak).
       - name: sex
         description: ALL, FEMALE or MALE.
       - name: healthy_volunteers
@@ -354,11 +357,11 @@ models:
       - name: n_inclusion_criteria
         description: >
           Items in the inclusion section (list items; for paragraph-style text, non-blank
-          lines minus the header).
+          lines minus the header). Latest version, soft leak.
       - name: n_exclusion_criteria
-        description: Items in the exclusion section (same rule; 0 when there is no exclusion section).
+        description: Items in the exclusion section (same rule; 0 when there is no exclusion section; soft leak).
       - name: criteria_text_length
-        description: Length of the eligibility criteria text in characters.
+        description: Length of the eligibility criteria text in characters (latest version, soft leak).
       - name: n_sites
         description: Number of listed sites (current list; soft leak).
         data_tests: [not_null]
@@ -368,14 +371,14 @@ models:
       - name: us_only
         description: All sites in the United States (NULL when no sites are listed; soft leak).
       - name: condition_category
-        description: Top-level condition category from the MeSH browse data, 'Unknown' otherwise.
+        description: Top-level condition category from the MeSH browse data, 'Unknown' otherwise (latest version, soft leak).
         data_tests:
           - not_null
           - accepted_values:
               arguments:
                 values: *condition_category_values
       - name: n_conditions
-        description: Number of distinct listed conditions.
+        description: Number of distinct listed conditions (latest version, soft leak).
         data_tests: [not_null]
       - name: start_year
         description: Year of start_date (ACTUAL or ESTIMATED).

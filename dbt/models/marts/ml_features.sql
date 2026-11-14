@@ -5,8 +5,13 @@
 -- why_stopped or the overall status. Only the stg_studies columns listed in `design`
 -- below are read; tests/dbt/test_dbt_build.py and tests/assert_ml_features_no_leakage.sql
 -- guard this.
--- Known soft leak (documented): n_sites, n_countries and us_only come from the current
--- site list, which can change after registration.
+-- Known soft leaks (documented): every feature comes from the LATEST record version, not
+-- the version at registration. Registry history is not ingested, so anything the sponsor
+-- can edit after registration may have changed by the time a trial closes. That covers
+-- the site list (n_sites, n_countries, us_only, the largest drift) and also the arms
+-- (n_arms), interventions (has_*), conditions (n_conditions, condition_category),
+-- eligibility criteria (n_*_criteria, criteria_text_length) and the age range
+-- (min/max_age_years).
 -- start_year comes from start_date whether it is tagged ACTUAL or ESTIMATED.
 with design as (
     select
@@ -75,6 +80,7 @@ intervention_flags as (
         max(case when intervention_type = 'BEHAVIORAL' then 1 else 0 end) as has_behavioral,
         max(
             case
+                when intervention_type is null then 0
                 when intervention_type in ('DRUG', 'BIOLOGICAL', 'DEVICE', 'PROCEDURE', 'BEHAVIORAL')
                     then 0
                 else 1

@@ -23,7 +23,12 @@
 {%- endmacro %}
 
 
-{# ---- json_str: scalar as varchar ---------------------------------------------------- #}
+{#- ---- json_str: scalar as varchar --------------------------------------------------
+  Use it on scalar values only (strings, numbers, booleans). On an OBJECT or ARRAY value
+  the branches differ: DuckDB returns the JSON text, while the Snowflake `::varchar` cast
+  raises an error ("Failed to cast variant value ... to VARCHAR"). Use json_array_join /
+  json_array_length / flatten_array for arrays.
+-#}
 {% macro json_str(col, path) -%}
     {{ return(adapter.dispatch('json_str', 'trial_risk')(col, path)) }}
 {%- endmacro %}

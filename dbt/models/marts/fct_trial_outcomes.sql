@@ -12,7 +12,10 @@ with closed as (
         enrollment_count,
         enrollment_type
     from {{ ref('stg_studies') }}
+    -- Label population (spec): interventional studies only. Ingestion already pulls only
+    -- interventional studies; the filter keeps the label definition self-contained.
     where overall_status in ('COMPLETED', 'TERMINATED', 'WITHDRAWN')
+      and study_type = 'INTERVENTIONAL'
 ),
 
 classified as (

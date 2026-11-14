@@ -7,16 +7,9 @@
     {{ return(adapter.dispatch('surrogate_key', 'trial_risk')(columns)) }}
 {%- endmacro %}
 
-{% macro duckdb__surrogate_key(columns) -%}
-    md5(
-        {%- for c in columns %}
-        coalesce(cast({{ c }} as varchar), '_null_'){% if not loop.last %} || '|' ||{% endif %}
-        {%- endfor %}
-    )
-{%- endmacro %}
-
-{# Snowflake MD5 returns a 32-character lowercase hex VARCHAR, same as DuckDB. #}
-{% macro snowflake__surrogate_key(columns) -%}
+{#- One implementation for both warehouses: md5, cast(... as varchar), coalesce and || behave
+    the same on DuckDB and Snowflake (MD5 returns a 32-character lowercase hex VARCHAR). -#}
+{% macro default__surrogate_key(columns) -%}
     md5(
         {%- for c in columns %}
         coalesce(cast({{ c }} as varchar), '_null_'){% if not loop.last %} || '|' ||{% endif %}

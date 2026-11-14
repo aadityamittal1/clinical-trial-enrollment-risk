@@ -48,7 +48,12 @@ models:
       - name: why_stopped
         description: statusModule.whyStopped (free text; outcome, never a feature).
       - name: study_type
-        description: designModule.studyType.
+        description: designModule.studyType (ingestion pulls INTERVENTIONAL only).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [INTERVENTIONAL, OBSERVATIONAL, EXPANDED_ACCESS]
       - name: phase
         description: designModule.phases joined with '/', 'NA' when absent or empty.
         data_tests:
