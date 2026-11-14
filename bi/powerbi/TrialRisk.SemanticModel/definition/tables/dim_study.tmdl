@@ -1,0 +1,100 @@
+table dim_study
+	lineageTag: b832abb7-e4e0-5f33-aa4d-b50bb6936d24
+
+	/// Studies in the current filter context.
+	measure 'Trial Count' = DISTINCTCOUNT(dim_study[nct_id])
+		formatString: #,0
+		lineageTag: 6a5f54a2-35d8-5b4e-97c1-6730dd47d647
+
+	/// RECRUITING or NOT_YET_RECRUITING studies.
+	measure 'Open Trial Count' = CALCULATE(DISTINCTCOUNT(dim_study[nct_id]), dim_study[is_open] = TRUE())
+		formatString: #,0
+		lineageTag: 734ab6fd-236d-5cf7-bae5-cf8503220640
+
+	column nct_id
+		dataType: string
+		lineageTag: 39f5f272-cd48-5b26-b8d6-9a7d6f119f03
+		summarizeBy: none
+		sourceColumn: nct_id
+
+	column brief_title
+		dataType: string
+		lineageTag: c32df139-2af5-5346-bdd7-3d4fbab79997
+		summarizeBy: none
+		sourceColumn: brief_title
+
+	column phase
+		dataType: string
+		lineageTag: 7819b984-8eab-5136-83e5-a157847e5c89
+		summarizeBy: none
+		sourceColumn: phase
+
+	column overall_status
+		dataType: string
+		lineageTag: a8501cb5-7a20-579b-96a2-ed20d94beb8c
+		summarizeBy: none
+		sourceColumn: overall_status
+
+	column is_open
+		dataType: boolean
+		lineageTag: 5c9aa875-df65-575e-88cd-29cdbdd5c9e8
+		summarizeBy: none
+		sourceColumn: is_open
+
+	column sponsor_key
+		dataType: string
+		isHidden
+		lineageTag: 369df33a-b71e-54f6-89e5-5a8e7e144416
+		summarizeBy: none
+		sourceColumn: sponsor_key
+
+	column lead_sponsor_class
+		dataType: string
+		lineageTag: 410a549e-1644-5533-aa2b-aae3955a9fc9
+		summarizeBy: none
+		sourceColumn: lead_sponsor_class
+
+	column start_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: f7851b95-b2af-5484-822b-a52e86704013
+		summarizeBy: none
+		sourceColumn: start_date
+
+	column start_year
+		dataType: int64
+		formatString: 0
+		lineageTag: d8f0c2bf-94a3-5543-abc6-4a5b557e710f
+		summarizeBy: none
+		sourceColumn: start_year
+
+	column completion_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 001b4a23-5c6b-540c-92c6-75e8117f8dc9
+		summarizeBy: none
+		sourceColumn: completion_date
+
+	column enrollment_count
+		dataType: int64
+		formatString: 0
+		lineageTag: f9f42239-bfda-54a6-9da3-66048840932c
+		summarizeBy: none
+		sourceColumn: enrollment_count
+
+	column enrollment_type
+		dataType: string
+		lineageTag: 91cc38b4-808e-5990-b2bd-2a2aa4ad969d
+		summarizeBy: none
+		sourceColumn: enrollment_type
+
+	column ctgov_url
+		dataType: string
+		lineageTag: 28cea927-a581-5640-bf5a-65ddbe6552d7
+		summarizeBy: none
+		sourceColumn: ctgov_url
+		dataCategory: WebUrl
+
+	partition dim_study = m
+		mode: import
+		source = fnMart("dim_study")

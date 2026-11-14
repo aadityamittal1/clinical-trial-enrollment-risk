@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "5747176609255ec4af30",
+  "position": {
+    "x": 20,
+    "y": 430,
+    "z": 0,
+    "height": 270,
+    "width": 1240,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "filledMap",
+    "query": {
+      "queryState": {
+        "Location": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_study_sites"
+                    }
+                  },
+                  "Property": "country"
+                }
+              },
+              "queryRef": "fct_study_sites.country",
+              "nativeQueryRef": "country"
+            }
+          ]
+        },
+        "Size": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_study_sites"
+                    }
+                  },
+                  "Property": "Site Count"
+                }
+              },
+              "queryRef": "fct_study_sites.Site Count",
+              "nativeQueryRef": "Site Count"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Trial sites by country'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

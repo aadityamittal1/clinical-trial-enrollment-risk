@@ -1,0 +1,31 @@
+slice_name: Risk distribution by phase
+description: null
+certified_by: null
+certification_details: null
+viz_type: box_plot
+params:
+  datasource: 8__table
+  viz_type: box_plot
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  columns:
+  - nct_id
+  groupby:
+  - phase
+  metrics:
+  - mean_risk_score
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: is_open AND risk_score IS NOT NULL
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+  whiskerOptions: Tukey
+  x_ticks_layout: auto
+query_context: null
+cache_timeout: null
+uuid: 7ed6f7b8-c814-5c17-9bf3-37dfc2e6c169
+version: 1.0.0
+dataset_uuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb

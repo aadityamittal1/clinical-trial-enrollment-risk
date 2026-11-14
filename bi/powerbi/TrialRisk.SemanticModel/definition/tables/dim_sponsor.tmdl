@@ -1,0 +1,25 @@
+table dim_sponsor
+	lineageTag: ef066296-3bb1-5aa4-956a-0c601561a090
+
+	column sponsor_key
+		dataType: string
+		isHidden
+		lineageTag: 10d91752-abb6-5984-9755-9274b3f98098
+		summarizeBy: none
+		sourceColumn: sponsor_key
+
+	column sponsor_name
+		dataType: string
+		lineageTag: 826727d9-0637-5cdb-ac6f-e4a212ee619c
+		summarizeBy: none
+		sourceColumn: sponsor_name
+
+	column sponsor_class
+		dataType: string
+		lineageTag: 2366fd7d-60be-5ce9-a80e-5800e4d849cb
+		summarizeBy: none
+		sourceColumn: sponsor_class
+
+	partition dim_sponsor = m
+		mode: import
+		source = fnMart("dim_sponsor")

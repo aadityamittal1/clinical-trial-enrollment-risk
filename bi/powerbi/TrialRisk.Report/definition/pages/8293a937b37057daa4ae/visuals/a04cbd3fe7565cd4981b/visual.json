@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "a04cbd3fe7565cd4981b",
+  "position": {
+    "x": 820,
+    "y": 130,
+    "z": 0,
+    "height": 280,
+    "width": 440,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "stackedColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "risk_band"
+                }
+              },
+              "queryRef": "ml_scores_latest.risk_band",
+              "nativeQueryRef": "risk_band"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "Scored Trials"
+                }
+              },
+              "queryRef": "ml_scores_latest.Scored Trials",
+              "nativeQueryRef": "Scored Trials"
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "phase"
+                }
+              },
+              "queryRef": "dim_study.phase",
+              "nativeQueryRef": "phase"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Risk distribution by phase'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,37 @@
+table dim_drug
+	lineageTag: cdd4929f-aa6b-5a24-8aad-bfba7c396058
+
+	/// Share of dim_drug rows with openFDA reactions.
+	measure 'OpenFDA Match Rate' = DIVIDE(CALCULATE(COUNTROWS(dim_drug), dim_drug[has_fda_data] = TRUE()), COUNTROWS(dim_drug))
+		formatString: 0.0%
+		lineageTag: fd341e21-c2b7-51e2-a764-f594a5075fb3
+
+	column drug_key
+		dataType: string
+		isHidden
+		lineageTag: 3a647d9c-91c5-5ea5-814a-dbf76271dee7
+		summarizeBy: none
+		sourceColumn: drug_key
+
+	column canonical_name
+		dataType: string
+		lineageTag: 513f6335-2422-5c64-8a8e-4b657c980a79
+		summarizeBy: none
+		sourceColumn: canonical_name
+
+	column n_studies
+		dataType: int64
+		formatString: 0
+		lineageTag: ebe5d5bb-2746-534f-ae02-a932a3b17c89
+		summarizeBy: none
+		sourceColumn: n_studies
+
+	column has_fda_data
+		dataType: boolean
+		lineageTag: f79911e1-78a1-5fac-abda-570412fd6770
+		summarizeBy: none
+		sourceColumn: has_fda_data
+
+	partition dim_drug = m
+		mode: import
+		source = fnMart("dim_drug")

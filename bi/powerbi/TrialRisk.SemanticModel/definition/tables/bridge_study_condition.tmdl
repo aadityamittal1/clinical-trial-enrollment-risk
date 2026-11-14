@@ -1,0 +1,19 @@
+table bridge_study_condition
+	lineageTag: 7d91ac65-2529-54ff-a34c-6c78cf8500a4
+
+	column nct_id
+		dataType: string
+		lineageTag: 2242c684-ffa5-54b9-b667-1789853ee348
+		summarizeBy: none
+		sourceColumn: nct_id
+
+	column condition_key
+		dataType: string
+		isHidden
+		lineageTag: e6d6aa18-bde5-5f54-a80a-43d44bf3e033
+		summarizeBy: none
+		sourceColumn: condition_key
+
+	partition bridge_study_condition = m
+		mode: import
+		source = fnMart("bridge_study_condition")

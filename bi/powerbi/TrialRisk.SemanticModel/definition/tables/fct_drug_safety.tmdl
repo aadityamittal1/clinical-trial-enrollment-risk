@@ -1,0 +1,38 @@
+table fct_drug_safety
+	lineageTag: ed92454f-f321-51da-a69e-a0776c70ef5e
+
+	/// Sum of report_count over each drug's listed reactions. openFDA gives no report total, so this is not total reports.
+	measure 'Reports Across Top Reactions' = SUM(fct_drug_safety[report_count])
+		formatString: #,0
+		lineageTag: ef6b2b93-79e7-5274-ab25-0d0d08d1508a
+
+	column drug_key
+		dataType: string
+		isHidden
+		lineageTag: 9b8c5cbf-7085-5801-932e-dcb169ba124e
+		summarizeBy: none
+		sourceColumn: drug_key
+
+	column reaction
+		dataType: string
+		lineageTag: d7b3c0dd-742d-53d7-9c7c-da44970249bc
+		summarizeBy: none
+		sourceColumn: reaction
+
+	column report_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 37025c22-b0a7-5107-9195-0a5384d2e5ac
+		summarizeBy: none
+		sourceColumn: report_count
+
+	column reaction_rank
+		dataType: int64
+		formatString: 0
+		lineageTag: 0d5aa069-4a10-546f-9ad2-73d998a4bd1a
+		summarizeBy: none
+		sourceColumn: reaction_rank
+
+	partition fct_drug_safety = m
+		mode: import
+		source = fnMart("fct_drug_safety")

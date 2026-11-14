@@ -1,0 +1,23 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+	sourceQueryCulture: en-US
+
+ref table dim_study
+ref table dim_sponsor
+ref table dim_condition
+ref table dim_drug
+ref table bridge_study_condition
+ref table bridge_study_drug
+ref table fct_study_sites
+ref table fct_trial_outcomes
+ref table ml_features
+ref table fct_drug_safety
+ref table ml_scores_latest
+
+ref expression SnowflakeServer
+ref expression SnowflakeWarehouse
+ref expression SnowflakeDatabase
+ref expression fnMart
+

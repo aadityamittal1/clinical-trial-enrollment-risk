@@ -1,0 +1,42 @@
+slice_name: Per-trial detail (pick a trial in the filter bar)
+description: null
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  datasource: 10__table
+  viz_type: table
+  row_limit: 50
+  extra_form_data: {}
+  dashboards: []
+  query_mode: raw
+  all_columns:
+  - ctgov_link
+  - brief_title
+  - phase
+  - overall_status
+  - lead_sponsor_class
+  - enrollment_count
+  - risk_score
+  - model_version
+  - scored_at
+  - top_driver_1
+  - top_driver_1_shap
+  - top_driver_2
+  - top_driver_2_shap
+  - top_driver_3
+  - top_driver_3_shap
+  - shap_values
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: is_open AND risk_score IS NOT NULL
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+  allow_render_html: true
+query_context: null
+cache_timeout: null
+uuid: 9d8641dd-2c34-5cae-8bef-7b54eb373503
+version: 1.0.0
+dataset_uuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb

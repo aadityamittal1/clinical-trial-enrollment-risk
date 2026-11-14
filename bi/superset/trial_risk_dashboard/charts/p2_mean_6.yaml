@@ -1,0 +1,25 @@
+slice_name: Mean risk score, open trials
+description: null
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  datasource: 6__table
+  viz_type: big_number_total
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  metric: mean_risk_score
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: is_open AND risk_score IS NOT NULL
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+  y_axis_format: .3f
+query_context: null
+cache_timeout: null
+uuid: 471a7495-353d-58fb-a4bf-bf4c68ab4cb9
+version: 1.0.0
+dataset_uuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb

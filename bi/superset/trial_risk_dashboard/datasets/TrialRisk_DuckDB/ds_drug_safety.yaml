@@ -1,0 +1,111 @@
+table_name: ds_drug_safety
+main_dttm_col: null
+description: null
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: marts
+sql: "SELECT\n  d.drug_key, d.canonical_name, d.n_studies, d.has_fda_data,\n  x.reaction, x.report_count, x.reaction_rank\n\
+  FROM marts.fct_drug_safety x\nJOIN marts.dim_drug d ON d.drug_key = x.drug_key"
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: {}
+uuid: 5edfab21-50aa-5784-81fd-72d657ba152c
+metrics:
+- metric_name: report_volume
+  verbose_name: Reports across top reactions
+  metric_type: null
+  expression: SUM(report_count)
+  description: null
+  d3format: null
+  extra: {}
+  warning_text: null
+columns:
+- column_name: drug_key
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: canonical_name
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: n_studies
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: BIGINT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: has_fda_data
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: BOOLEAN
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: reaction
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: report_count
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: BIGINT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: reaction_rank
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: BIGINT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+version: 1.0.0
+database_uuid: 0263bb34-8541-524d-8a8a-b12576446937

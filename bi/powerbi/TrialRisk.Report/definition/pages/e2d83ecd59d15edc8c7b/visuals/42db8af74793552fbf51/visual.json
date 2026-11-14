@@ -1,0 +1,172 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "42db8af74793552fbf51",
+  "position": {
+    "x": 20,
+    "y": 130,
+    "z": 0,
+    "height": 150,
+    "width": 1240,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "risk_score"
+                }
+              },
+              "queryRef": "ml_scores_latest.risk_score",
+              "nativeQueryRef": "risk_score"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "model_version"
+                }
+              },
+              "queryRef": "ml_scores_latest.model_version",
+              "nativeQueryRef": "model_version"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "scored_at"
+                }
+              },
+              "queryRef": "ml_scores_latest.scored_at",
+              "nativeQueryRef": "scored_at"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_1"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_1",
+              "nativeQueryRef": "top_driver_1"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_1_shap"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_1_shap",
+              "nativeQueryRef": "top_driver_1_shap"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_2"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_2",
+              "nativeQueryRef": "top_driver_2"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_2_shap"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_2_shap",
+              "nativeQueryRef": "top_driver_2_shap"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_3"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_3",
+              "nativeQueryRef": "top_driver_3"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_3_shap"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_3_shap",
+              "nativeQueryRef": "top_driver_3_shap"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Risk score and top 3 SHAP drivers'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

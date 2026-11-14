@@ -1,0 +1,578 @@
+dashboard_title: Trial Risk
+description: 'Enrollment-risk dashboard on the trial-risk marts: portfolio overview, enrollment risk, drug safety context.'
+css: ''
+slug: trial-risk
+uuid: 686e644e-255e-5bfa-9c18-3cf0cb178a11
+position:
+  DASHBOARD_VERSION_KEY: v2
+  ROOT_ID:
+    type: ROOT
+    id: ROOT_ID
+    children:
+    - GRID_ID
+  GRID_ID:
+    type: GRID
+    id: GRID_ID
+    children:
+    - TABS-main
+    parents:
+    - ROOT_ID
+  HEADER_ID:
+    id: HEADER_ID
+    type: HEADER
+    meta:
+      text: Trial Risk
+  TABS-main:
+    type: TABS
+    id: TABS-main
+    children:
+    - TAB-portfolio
+    - TAB-risk
+    - TAB-drug
+    parents:
+    - ROOT_ID
+    - GRID_ID
+  TAB-portfolio:
+    type: TAB
+    id: TAB-portfolio
+    children:
+    - ROW-portfolio-1
+    - ROW-portfolio-2
+    - ROW-portfolio-3
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    meta:
+      text: Portfolio overview
+  ROW-portfolio-1:
+    type: ROW
+    id: ROW-portfolio-1
+    children:
+    - CHART-p1_trials
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-portfolio
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p1_trials:
+    type: CHART
+    id: CHART-p1_trials
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-portfolio
+    - ROW-portfolio-1
+    meta:
+      width: 12
+      height: 30
+      chartId: 1
+      uuid: 189ac513-6f99-553a-ba0e-227660d3cc83
+      sliceName: Trials in portfolio
+  ROW-portfolio-2:
+    type: ROW
+    id: ROW-portfolio-2
+    children:
+    - CHART-p1_phase_status
+    - CHART-p1_sponsor
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-portfolio
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p1_phase_status:
+    type: CHART
+    id: CHART-p1_phase_status
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-portfolio
+    - ROW-portfolio-2
+    meta:
+      width: 6
+      height: 55
+      chartId: 2
+      uuid: c2ab8563-bfc2-5fac-86e2-a167f9a6f27e
+      sliceName: Trials by phase and status
+  CHART-p1_sponsor:
+    type: CHART
+    id: CHART-p1_sponsor
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-portfolio
+    - ROW-portfolio-2
+    meta:
+      width: 6
+      height: 55
+      chartId: 3
+      uuid: 9ed20958-710c-511d-9764-a915c87be001
+      sliceName: Sponsor-class split
+  ROW-portfolio-3:
+    type: ROW
+    id: ROW-portfolio-3
+    children:
+    - CHART-p1_map
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-portfolio
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p1_map:
+    type: CHART
+    id: CHART-p1_map
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-portfolio
+    - ROW-portfolio-3
+    meta:
+      width: 12
+      height: 55
+      chartId: 4
+      uuid: 52ee64e1-a257-59cc-9253-224da070e441
+      sliceName: Trial sites by country
+  TAB-risk:
+    type: TAB
+    id: TAB-risk
+    children:
+    - ROW-risk-1
+    - ROW-risk-2
+    - ROW-risk-3
+    - ROW-risk-4
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    meta:
+      text: Enrollment risk
+  ROW-risk-1:
+    type: ROW
+    id: ROW-risk-1
+    children:
+    - CHART-p2_high
+    - CHART-p2_mean
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p2_high:
+    type: CHART
+    id: CHART-p2_high
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    - ROW-risk-1
+    meta:
+      width: 6
+      height: 30
+      chartId: 5
+      uuid: 215e4085-0b0f-503a-9c9a-30787089a143
+      sliceName: High-risk open trials
+  CHART-p2_mean:
+    type: CHART
+    id: CHART-p2_mean
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    - ROW-risk-1
+    meta:
+      width: 6
+      height: 30
+      chartId: 6
+      uuid: 471a7495-353d-58fb-a4bf-bf4c68ab4cb9
+      sliceName: Mean risk score, open trials
+  ROW-risk-2:
+    type: ROW
+    id: ROW-risk-2
+    children:
+    - CHART-p2_ranked
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p2_ranked:
+    type: CHART
+    id: CHART-p2_ranked
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    - ROW-risk-2
+    meta:
+      width: 12
+      height: 80
+      chartId: 7
+      uuid: d0e13b8a-23a4-54e7-88b2-1fec910a2d8c
+      sliceName: Open trials ranked by risk
+  ROW-risk-3:
+    type: ROW
+    id: ROW-risk-3
+    children:
+    - CHART-p2_dist_phase
+    - CHART-p2_dist_sponsor
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p2_dist_phase:
+    type: CHART
+    id: CHART-p2_dist_phase
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    - ROW-risk-3
+    meta:
+      width: 6
+      height: 55
+      chartId: 8
+      uuid: 7ed6f7b8-c814-5c17-9bf3-37dfc2e6c169
+      sliceName: Risk distribution by phase
+  CHART-p2_dist_sponsor:
+    type: CHART
+    id: CHART-p2_dist_sponsor
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    - ROW-risk-3
+    meta:
+      width: 6
+      height: 55
+      chartId: 9
+      uuid: a9ebba76-710e-5aec-8817-8342933d49f6
+      sliceName: Risk distribution by sponsor class
+  ROW-risk-4:
+    type: ROW
+    id: ROW-risk-4
+    children:
+    - CHART-p2_detail
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p2_detail:
+    type: CHART
+    id: CHART-p2_detail
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-risk
+    - ROW-risk-4
+    meta:
+      width: 12
+      height: 80
+      chartId: 10
+      uuid: 9d8641dd-2c34-5cae-8bef-7b54eb373503
+      sliceName: Per-trial detail (pick a trial in the filter bar)
+  TAB-drug:
+    type: TAB
+    id: TAB-drug
+    children:
+    - ROW-drug-1
+    - ROW-drug-2
+    - ROW-drug-3
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    meta:
+      text: Drug safety context
+  ROW-drug-1:
+    type: ROW
+    id: ROW-drug-1
+    children:
+    - CHART-p3_volume
+    - CHART-p3_match
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-drug
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p3_volume:
+    type: CHART
+    id: CHART-p3_volume
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-drug
+    - ROW-drug-1
+    meta:
+      width: 6
+      height: 30
+      chartId: 11
+      uuid: 5118d025-c0de-54b6-be34-e5aa2e732414
+      sliceName: Reports across top reactions
+  CHART-p3_match:
+    type: CHART
+    id: CHART-p3_match
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-drug
+    - ROW-drug-1
+    meta:
+      width: 6
+      height: 30
+      chartId: 12
+      uuid: bc649188-9c9a-5bca-b95a-8529ed61591a
+      sliceName: openFDA match rate
+  ROW-drug-2:
+    type: ROW
+    id: ROW-drug-2
+    children:
+    - CHART-p3_reactions
+    - CHART-p3_reaction_table
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-drug
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p3_reactions:
+    type: CHART
+    id: CHART-p3_reactions
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-drug
+    - ROW-drug-2
+    meta:
+      width: 6
+      height: 55
+      chartId: 13
+      uuid: 7b8fa06a-46d9-5ffc-adbd-937737813c3b
+      sliceName: Top reported reactions
+  CHART-p3_reaction_table:
+    type: CHART
+    id: CHART-p3_reaction_table
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-drug
+    - ROW-drug-2
+    meta:
+      width: 6
+      height: 55
+      chartId: 14
+      uuid: b7f4fb04-8fe4-55d6-b407-089473967dcd
+      sliceName: Top reactions per drug
+  ROW-drug-3:
+    type: ROW
+    id: ROW-drug-3
+    children:
+    - CHART-p3_links
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-drug
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-p3_links:
+    type: CHART
+    id: CHART-p3_links
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - TABS-main
+    - TAB-drug
+    - ROW-drug-3
+    meta:
+      width: 12
+      height: 80
+      chartId: 15
+      uuid: 3a25b70c-b2d7-5024-a7e4-dcf17049c5a3
+      sliceName: Trials testing each drug (ClinicalTrials.gov link)
+metadata:
+  color_scheme: supersetColors
+  refresh_frequency: 0
+  shared_label_colors: {}
+  color_scheme_domain: []
+  expanded_slices: {}
+  label_colors: {}
+  timed_refresh_immune_slices: []
+  cross_rules: {}
+  native_filter_configuration:
+  - id: NATIVE_FILTER-cond
+    controlValues:
+      multiSelect: true
+      enableEmptyFilter: false
+      defaultToFirstItem: false
+      inverseSelection: false
+      searchAllOptions: true
+    name: Condition category
+    filterType: filter_select
+    targets:
+    - datasetUuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb
+      column:
+        name: condition_category
+    defaultDataMask:
+      extraFormData: {}
+      filterState: {}
+      ownState: {}
+    cascadeParentIds: []
+    scope:
+      rootPath:
+      - TAB-portfolio
+      excluded: []
+    type: NATIVE_FILTER
+    description: ''
+  - id: NATIVE_FILTER-year
+    controlValues:
+      multiSelect: true
+      enableEmptyFilter: false
+      defaultToFirstItem: false
+      inverseSelection: false
+      searchAllOptions: true
+    name: Start year
+    filterType: filter_select
+    targets:
+    - datasetUuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb
+      column:
+        name: start_year
+    defaultDataMask:
+      extraFormData: {}
+      filterState: {}
+      ownState: {}
+    cascadeParentIds: []
+    scope:
+      rootPath:
+      - TAB-portfolio
+      excluded: []
+    type: NATIVE_FILTER
+    description: ''
+  - id: NATIVE_FILTER-sponsor
+    controlValues:
+      multiSelect: true
+      enableEmptyFilter: false
+      defaultToFirstItem: false
+      inverseSelection: false
+      searchAllOptions: true
+    name: Sponsor class
+    filterType: filter_select
+    targets:
+    - datasetUuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb
+      column:
+        name: lead_sponsor_class
+    defaultDataMask:
+      extraFormData: {}
+      filterState: {}
+      ownState: {}
+    cascadeParentIds: []
+    scope:
+      rootPath:
+      - TAB-risk
+      excluded: []
+    type: NATIVE_FILTER
+    description: ''
+  - id: NATIVE_FILTER-trial
+    controlValues:
+      multiSelect: false
+      enableEmptyFilter: false
+      defaultToFirstItem: false
+      inverseSelection: false
+      searchAllOptions: true
+    name: Trial (NCT ID)
+    filterType: filter_select
+    targets:
+    - datasetUuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb
+      column:
+        name: nct_id
+    defaultDataMask:
+      extraFormData: {}
+      filterState: {}
+      ownState: {}
+    cascadeParentIds: []
+    scope:
+      rootPath:
+      - TAB-risk
+      excluded: []
+    type: NATIVE_FILTER
+    description: ''
+  - id: NATIVE_FILTER-drug
+    controlValues:
+      multiSelect: true
+      enableEmptyFilter: false
+      defaultToFirstItem: false
+      inverseSelection: false
+      searchAllOptions: true
+    name: Drug
+    filterType: filter_select
+    targets:
+    - datasetUuid: 5edfab21-50aa-5784-81fd-72d657ba152c
+      column:
+        name: canonical_name
+    defaultDataMask:
+      extraFormData: {}
+      filterState: {}
+      ownState: {}
+    cascadeParentIds: []
+    scope:
+      rootPath:
+      - TAB-drug
+      excluded: []
+    type: NATIVE_FILTER
+    description: ''
+  chart_configuration: {}
+  global_chart_configuration:
+    scope:
+      rootPath:
+      - ROOT_ID
+      excluded: []
+    chartsInScope: []
+  default_filters: '{}'
+version: 1.0.0

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "e24169593f515196979c",
+  "position": {
+    "x": 20,
+    "y": 20,
+    "z": 0,
+    "height": 90,
+    "width": 260,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_drug_safety"
+                    }
+                  },
+                  "Property": "Reports Across Top Reactions"
+                }
+              },
+              "queryRef": "fct_drug_safety.Reports Across Top Reactions",
+              "nativeQueryRef": "Reports Across Top Reactions"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

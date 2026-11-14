@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "3769d1759fb95ef79289",
+  "position": {
+    "x": 300,
+    "y": 20,
+    "z": 0,
+    "height": 90,
+    "width": 200,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_drug"
+                    }
+                  },
+                  "Property": "OpenFDA Match Rate"
+                }
+              },
+              "queryRef": "dim_drug.OpenFDA Match Rate",
+              "nativeQueryRef": "OpenFDA Match Rate"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

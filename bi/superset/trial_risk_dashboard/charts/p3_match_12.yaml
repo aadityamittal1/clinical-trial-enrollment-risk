@@ -1,0 +1,20 @@
+slice_name: openFDA match rate
+description: null
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  datasource: 12__table
+  viz_type: big_number_total
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  metric: match_rate
+  adhoc_filters: []
+  y_axis_format: .1%
+  subheader: share of dim_drug rows with openFDA reactions
+query_context: null
+cache_timeout: null
+uuid: bc649188-9c9a-5bca-b95a-8529ed61591a
+version: 1.0.0
+dataset_uuid: 39c5ca2d-690d-56a4-a252-27b3c3a1c66b

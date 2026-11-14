@@ -1,0 +1,31 @@
+slice_name: Top reported reactions
+description: Pick a drug in the filter bar for per-drug reactions; unfiltered it sums across drugs.
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  datasource: 13__table
+  viz_type: echarts_timeseries_bar
+  row_limit: 25
+  extra_form_data: {}
+  dashboards: []
+  x_axis: reaction
+  metrics:
+  - report_volume
+  groupby: []
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: reaction_rank <= 25
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+  orientation: horizontal
+  x_axis_sort: report_volume
+  x_axis_sort_asc: false
+  show_legend: false
+query_context: null
+cache_timeout: null
+uuid: 7b8fa06a-46d9-5ffc-adbd-937737813c3b
+version: 1.0.0
+dataset_uuid: 5edfab21-50aa-5784-81fd-72d657ba152c
