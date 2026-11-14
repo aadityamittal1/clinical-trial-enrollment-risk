@@ -1,0 +1,73 @@
+# STATIC TIER: not executed by the authors.
+name: ci
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run mypy common ingestion ml serving pipeline
+      - run: uv run pytest
+
+  pipeline-sample:
+    # Fast job, no cluster: run the pipeline on the sample snapshot, then the model smoke test.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run python -m pipeline run --source sample
+      - run: uv run pytest tests/ml -k smoke
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build pipeline image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/pipeline.Dockerfile
+          push: false
+          tags: trial-risk-pipeline:local
+      - name: Build serving image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/serving.Dockerfile
+          push: false
+          tags: trial-risk-serving:local
+
+  kind-e2e:
+    # Separate job so a kind failure is distinguishable from lint/test failures.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: azure/setup-helm@v4
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: trial-risk
+          config: deploy/kind/cluster.yaml
+      - run: uv sync
+      - name: Bring up the stack on kind
+        run: bash deploy/local-up.sh
+      - name: Pipeline on the sample snapshot
+        run: uv run python -m pipeline run --source sample
+      - name: dbt tests
+        run: uv run dbt build --project-dir dbt --profiles-dir dbt --target local
+      - name: Model smoke test
+        run: uv run pytest tests/ml -k smoke
+      - name: Dump cluster state on failure
+        if: failure()
+        run: kubectl get pods -n trial-risk -o wide || true
