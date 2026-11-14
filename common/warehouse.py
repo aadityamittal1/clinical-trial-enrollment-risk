@@ -93,12 +93,17 @@ class SnowflakeWarehouse:
         _check_mode(mode)
         from snowflake.connector.pandas_tools import write_pandas
 
+        # Unquoted, upper-case identifiers so we hit the same objects as dbt / plain DDL.
+        # write_pandas loads by column name, so a lower-case DataFrame appends correctly.
+        # NOTE: argument shapes are checked with a mocked SDK only; never run against a
+        # real Snowflake account in this repo's build environment.
         self.execute(f"create schema if not exists {schema}")
         write_pandas(
             self._con,
-            df,
+            df.rename(columns=lambda c: str(c).upper()),
             table.upper(),
             schema=schema.upper(),
+            quote_identifiers=False,
             auto_create_table=True,
             overwrite=(mode == "replace"),
         )

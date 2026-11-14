@@ -84,3 +84,29 @@ def test_snowflake_construction_and_execute() -> None:
         )
         wh.close()
         fake.connect.return_value.close.assert_called_once()
+
+
+def test_snowflake_write_df_uses_unquoted_uppercase_identifiers() -> None:
+    s = Settings(_env_file=None, mode="cloud")  # type: ignore[call-arg]
+    fake = MagicMock()
+    tools = MagicMock()
+    parent = MagicMock(connector=fake)
+    mods = {
+        "snowflake": parent,
+        "snowflake.connector": fake,
+        "snowflake.connector.pandas_tools": tools,
+    }
+    with patch.dict("sys.modules", mods):
+        wh = get_warehouse(s)
+        df = pd.DataFrame({"nct_id": ["N1"], "risk_score": [0.5]})
+        wh.write_df(df, "marts", "ml_scores", mode="append")
+        args, kwargs = tools.write_pandas.call_args
+        assert args[0] is fake.connect.return_value
+        assert list(args[1].columns) == ["NCT_ID", "RISK_SCORE"]
+        assert args[2] == "ML_SCORES"
+        assert kwargs["schema"] == "MARTS"
+        assert kwargs["quote_identifiers"] is False
+        assert kwargs["overwrite"] is False
+        wh.write_df(df, "marts", "ml_scores", mode="replace")
+        assert tools.write_pandas.call_args.kwargs["overwrite"] is True
+        assert list(df.columns) == ["nct_id", "risk_score"]  # caller's frame untouched
