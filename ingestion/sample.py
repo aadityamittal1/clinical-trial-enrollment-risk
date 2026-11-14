@@ -107,28 +107,49 @@ def _status(study: dict[str, Any]) -> str:
 def build(out_dir: str | Path, today: str | None = None) -> SampleResult:
     day = today or ctgov.today_utc()
     root = Path(out_dir)
-    for sub in ("ctgov", "fda"):
-        shutil.rmtree(root / sub, ignore_errors=True)
-    storage = FileStorage(root)
-    with httpx.Client(timeout=120) as client:
-        chosen: list[str] = []
-        for status, year, quota in strata():
-            ids = list_ids(client, status, year)
-            picked = pick(ids, quota)
-            print(f"{status} {year or '-'}: {len(ids)} matching, sampled {len(picked)}", flush=True)
-            chosen.extend(picked)
-        chosen = sorted(set(chosen))
-        studies = sorted(fetch_studies(client, chosen), key=ctgov.study_nct_id)
-        for i in range(0, len(studies), PART_SIZE):
-            write_jsonl_gz(
-                storage,
-                f"ctgov/{day}/part-{i // PART_SIZE:05d}.jsonl.gz",
-                studies[i : i + PART_SIZE],
-            )
-        top = fda.top_drug_names(studies, N_FDA_DRUGS)
-        fetcher = fda.FdaFetcher(client)
-        res = fda.pull(storage, [n for n, _ in top], fetcher=fetcher, today=day)
-    write_readme(root, day, studies, top, res)
+    tmp = root / ".build-tmp"
+    shutil.rmtree(tmp, ignore_errors=True)
+    storage = FileStorage(tmp)
+    try:
+        with httpx.Client(timeout=120) as client:
+            chosen: list[str] = []
+            for status, year, quota in strata():
+                ids = list_ids(client, status, year)
+                picked = pick(ids, quota)
+                print(
+                    f"{status} {year or '-'}: {len(ids)} matching, sampled {len(picked)}",
+                    flush=True,
+                )
+                chosen.extend(picked)
+            chosen = sorted(set(chosen))
+            studies = sorted(fetch_studies(client, chosen), key=ctgov.study_nct_id)
+            fetched = {ctgov.study_nct_id(s) for s in studies}
+            if len(studies) != len(chosen) or fetched != set(chosen):
+                missing = sorted(set(chosen) - fetched)
+                raise RuntimeError(
+                    f"fetched {len(studies)} studies for {len(chosen)} chosen ids; "
+                    f"missing e.g. {missing[:5]}"
+                )
+            for i in range(0, len(studies), PART_SIZE):
+                write_jsonl_gz(
+                    storage,
+                    f"ctgov/{day}/part-{i // PART_SIZE:05d}.jsonl.gz",
+                    studies[i : i + PART_SIZE],
+                )
+            top = fda.top_drug_names(studies, N_FDA_DRUGS)
+            fetcher = fda.FdaFetcher(client)
+            res = fda.pull(storage, [n for n, _ in top], fetcher=fetcher, today=day)
+            if res.stopped_early or res.n_failed or res.n_drugs != len(top):
+                raise RuntimeError(f"openFDA pull incomplete: {res}")
+        write_readme(tmp, day, studies, top, res)
+        # swap in only after everything succeeded
+        root.mkdir(parents=True, exist_ok=True)
+        for sub in ("ctgov", "fda"):
+            shutil.rmtree(root / sub, ignore_errors=True)
+            shutil.move(str(tmp / sub), str(root / sub))
+        shutil.move(str(tmp / "README.md"), str(root / "README.md"))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     return SampleResult(len(studies), res.n_drugs, res.n_empty)
 
 

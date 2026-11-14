@@ -1,14 +1,13 @@
 """CLI: ``python -m ingestion {ctgov,fda,load,sample}``."""
 
 import argparse
-import json
 from collections.abc import Sequence
 from pathlib import Path
 
 import httpx
 
 from common.config import get_settings
-from common.storage import FileStorage, Storage, get_storage
+from common.storage import FileStorage, get_storage
 from common.warehouse import Warehouse, get_warehouse
 from ingestion import ctgov, fda, load, sample
 
@@ -33,24 +32,6 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _top_names(storage: Storage, wh: Warehouse | None, n: int) -> list[tuple[str, int]]:
-    """Top drug names from raw.ctgov_studies when it exists, else from landing files."""
-    if wh is not None:
-        is_duck = get_settings().warehouse == "duckdb"
-        cast = "cast(study as varchar)" if is_duck else "to_varchar(study)"
-        try:
-            df = wh.query_df(
-                f"select {cast} as study from raw.ctgov_studies "
-                "qualify row_number() over (partition by nct_id "
-                "order by last_update_posted desc, loaded_at desc) = 1"
-            )
-        except Exception:  # table (or warehouse file) missing -> fall back to landing files
-            df = None
-        if df is not None and len(df):
-            return fda.top_drug_names((json.loads(s) for s in df["study"]), n)
-    return fda.top_drug_names(fda.latest_landing_studies(storage), n)
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     settings = get_settings()
@@ -64,7 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if settings.warehouse == "snowflake" or Path(settings.duckdb_path).exists():
             wh = get_warehouse(settings)
         try:
-            names = [n for n, _ in _top_names(storage, wh, args.max_drugs)]
+            names = [n for n, _ in fda.top_names(storage, wh, args.max_drugs, settings.warehouse)]
         finally:
             if wh is not None:
                 wh.close()
@@ -76,6 +57,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             fres = fda.pull(storage, names, fetcher=fetcher)
         print(
             f"fda: {fres.n_drugs} drugs ({fres.n_empty} with no reports)"
+            + f", {fres.n_skipped} already landed today, {fres.n_failed} failed"
             + ("; stopped early at the request cap" if fres.stopped_early else "")
         )
     elif args.command == "load":

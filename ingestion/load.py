@@ -1,9 +1,14 @@
 """Loader: landing files (or the committed sample) -> ``raw`` tables.
 
 Raw tables are append-only, one row per study (or drug) per load. Loaded files are tracked in
-``raw._loaded_files`` so a second run loads nothing. A crash between the data insert and the
-tracking insert re-loads that one file on the next run; the dbt staging layer keeps the latest
-version per study / drug, so duplicates are harmless.
+``raw._loaded_files`` so a second run loads nothing.
+
+Crash safety: on DuckDB the rows and the tracking row are written in one transaction, so a
+crash never half-loads a file. Snowflake caveat of the raw contract: ``COPY INTO`` and the
+tracking insert are separate statements (no multi-statement transaction through this
+interface), so a crash between them re-loads that file; Snowflake's own load history usually
+skips already-copied files, and in any case the dbt staging layer keeps the latest version
+per ``nct_id`` / drug, so duplicates are harmless.
 
 DuckDB path: read through ``Storage`` and insert. Snowflake path: ``COPY INTO`` from the
 external stage ``raw.landing_stage`` (static tier, not executed on the build machine); the
@@ -59,6 +64,13 @@ def ensure_raw_tables(wh: Warehouse, dialect: Dialect = "duckdb") -> None:
 
 def _lit(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
+
+
+def _track_sql(tracked: str, n: int) -> str:
+    return (
+        "insert into raw._loaded_files "
+        f"values ({_lit(tracked)}, cast(current_timestamp as timestamp), {n})"
+    )
 
 
 def snowflake_copy_sql(source: str, key: str) -> str:
@@ -119,18 +131,23 @@ def load_files(
             if tracked in done or not key.endswith(".jsonl.gz"):
                 continue
             if dialect == "snowflake" and not source_label:
+                # No cross-statement transaction here: COPY INTO commits on its own.
                 wh.execute(snowflake_copy_sql(source, key))
+                wh.execute(_track_sql(tracked, 0))
                 n = 0
             else:
                 records = list(read_jsonl_gz(storage, key))
                 now = datetime.now(UTC).replace(tzinfo=None, microsecond=0)
                 table = "ctgov_studies" if source == "ctgov" else "fda_event_counts"
-                wh.write_df(_frame(source, records, now), "raw", table)
+                wh.execute("begin")
+                try:
+                    wh.write_df(_frame(source, records, now), "raw", table)
+                    wh.execute(_track_sql(tracked, len(records)))
+                except BaseException:
+                    wh.execute("rollback")
+                    raise
+                wh.execute("commit")
                 n = len(records)
-            wh.execute(
-                "insert into raw._loaded_files "
-                f"values ({_lit(tracked)}, cast(current_timestamp as timestamp), {n})"
-            )
             files += 1
             rows += n
     return LoadResult(files_loaded=files, rows_loaded=rows)

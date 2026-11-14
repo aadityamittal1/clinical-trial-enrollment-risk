@@ -9,6 +9,7 @@ store as an empty ``results`` list. The count endpoint does not return a report 
 (co-medications included), not causal rates.
 """
 
+import logging
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable
@@ -20,6 +21,7 @@ import httpx
 from tenacity.wait import wait_base
 
 from common.storage import Storage, read_jsonl_gz, write_jsonl_gz
+from common.warehouse import Warehouse
 from ingestion._http import DEFAULT_WAIT, get_with_retry
 from ingestion.ctgov import today_utc
 from ingestion.drug_names import canonical_drug_name
@@ -39,6 +41,8 @@ class FdaPullResult:
     n_drugs: int
     n_empty: int
     stopped_early: bool
+    n_skipped: int = 0
+    n_failed: int = 0
 
 
 def drug_names_in_study(study: dict[str, Any]) -> set[str]:
@@ -59,17 +63,88 @@ def top_drug_names(studies: Iterable[dict[str, Any]], n: int) -> list[tuple[str,
     counts: Counter[str] = Counter()
     for study in studies:
         counts.update(drug_names_in_study(study))
-    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
+    return _rank(counts, n)
 
 
-def latest_landing_studies(storage: Storage) -> Iterable[dict[str, Any]]:
-    """All landed studies, latest landed version per NCT id."""
-    latest: dict[str, dict[str, Any]] = {}
+def landing_drug_names_per_study(storage: Storage) -> dict[str, set[str]]:
+    """Stream landed studies; keep only canonical drug names per NCT id (latest file wins)."""
+    names: dict[str, set[str]] = {}
     for key in storage.list_keys("ctgov/"):
         for study in read_jsonl_gz(storage, key):
             nct = study["protocolSection"]["identificationModule"]["nctId"]
-            latest[nct] = study
-    return latest.values()
+            names[nct] = drug_names_in_study(study)
+    return names
+
+
+def _rank(counts: Counter[str], n: int) -> list[tuple[str, int]]:
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
+
+
+def top_drug_names_from_landing(storage: Storage, n: int) -> list[tuple[str, int]]:
+    counts: Counter[str] = Counter()
+    for names in landing_drug_names_per_study(storage).values():
+        counts.update(names)
+    return _rank(counts, n)
+
+
+def _warehouse_table_exists(wh: Warehouse) -> bool:
+    df = wh.query_df(
+        "select count(*) as n from information_schema.tables "
+        "where lower(table_schema) = 'raw' and lower(table_name) = 'ctgov_studies'"
+    )
+    return int(df["n"][0]) > 0
+
+
+_LATEST = (
+    "select nct_id, study from raw.ctgov_studies "
+    "qualify row_number() over (partition by nct_id "
+    "order by last_update_posted desc, loaded_at desc) = 1"
+)
+# Interventions are extracted inside the warehouse; only (nct_id, type, name) rows come back.
+DUCKDB_INTERVENTIONS_SQL = (
+    "select nct_id, json_extract_string(i, '$.type') as itype, "
+    "json_extract_string(i, '$.name') as iname from ("
+    "select nct_id, unnest(cast(json_extract(study, "
+    "'$.protocolSection.armsInterventionsModule.interventions') as json[])) as i "
+    f"from ({_LATEST}))"
+)
+# Static tier: not executed on the build machine.
+SNOWFLAKE_INTERVENTIONS_SQL = (
+    "select l.nct_id, f.value:type::varchar as itype, f.value:name::varchar as iname "
+    f"from ({_LATEST}) l, "
+    "lateral flatten(input => l.study:protocolSection.armsInterventionsModule.interventions) f"
+)
+
+
+def top_drug_names_from_warehouse(
+    wh: Warehouse, n: int, dialect: str = "duckdb"
+) -> list[tuple[str, int]] | None:
+    """Top names from ``raw.ctgov_studies``; ``None`` when the table does not exist."""
+    if not _warehouse_table_exists(wh):
+        return None
+    sql = DUCKDB_INTERVENTIONS_SQL if dialect == "duckdb" else SNOWFLAKE_INTERVENTIONS_SQL
+    df = wh.query_df(sql)
+    per_study: dict[str, set[str]] = {}
+    for nct, itype, iname in zip(df["nct_id"], df["itype"], df["iname"], strict=True):
+        if itype in DRUG_TYPES and iname:
+            canon = canonical_drug_name(str(iname))
+            if canon:
+                per_study.setdefault(str(nct), set()).add(canon)
+    counts: Counter[str] = Counter()
+    for names in per_study.values():
+        counts.update(names)
+    return _rank(counts, n)
+
+
+def top_names(
+    storage: Storage, wh: Warehouse | None, n: int, dialect: str = "duckdb"
+) -> list[tuple[str, int]]:
+    """Warehouse table when it exists and has rows, otherwise the landing files."""
+    if wh is not None:
+        ranked = top_drug_names_from_warehouse(wh, n, dialect)
+        if ranked:
+            return ranked
+    return top_drug_names_from_landing(storage, n)
 
 
 class FdaFetcher:
@@ -147,28 +222,70 @@ class FdaFetcher:
         }
 
 
+CHUNK = 100
+log = logging.getLogger(__name__)
+
+
+def _landed_names(storage: Storage, day: str) -> set[str]:
+    done: set[str] = set()
+    for key in storage.list_keys(f"fda/{day}/"):
+        done.update(str(r["drug_name"]) for r in read_jsonl_gz(storage, key))
+    return done
+
+
 def pull(
     storage: Storage,
     names: Iterable[str],
     *,
     fetcher: FdaFetcher,
     today: str | None = None,
+    chunk: int = CHUNK,
 ) -> FdaPullResult:
-    """Fetch each name and write ``fda/<date>/part-NNNNN.jsonl.gz`` (one part per run)."""
+    """Fetch each name and write ``fda/<date>/part-NNNNN.jsonl.gz``, one part per ``chunk``.
+
+    Drugs already landed today are skipped, so a retry or second run the same day neither
+    repeats requests (daily cap) nor duplicates rows. A per-drug HTTP or decoding error
+    (other than 429) is logged and skipped; records are flushed every ``chunk`` drugs so a
+    crash loses at most one chunk.
+    """
     day = today or today_utc()
-    records: list[dict[str, Any]] = []
+    done = _landed_names(storage, day)
+    buffer: list[dict[str, Any]] = []
+    n_fetched = n_empty = n_skipped = n_failed = 0
     stopped = False
-    for name in names:
-        try:
-            records.append(fetcher.fetch(name))
-        except FdaStop:
-            stopped = True
-            break
-    if records:
-        part = len(storage.list_keys(f"fda/{day}/"))
-        write_jsonl_gz(storage, f"fda/{day}/part-{part:05d}.jsonl.gz", records)
+
+    def flush() -> None:
+        if buffer:
+            part = len(storage.list_keys(f"fda/{day}/"))
+            write_jsonl_gz(storage, f"fda/{day}/part-{part:05d}.jsonl.gz", buffer)
+            buffer.clear()
+
+    try:
+        for name in names:
+            if name in done:
+                n_skipped += 1
+                continue
+            try:
+                rec = fetcher.fetch(name)
+            except FdaStop:
+                stopped = True
+                break
+            except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+                log.warning("openFDA fetch failed for %r: %s", name, exc)
+                n_failed += 1
+                continue
+            buffer.append(rec)
+            done.add(name)
+            n_fetched += 1
+            n_empty += 0 if rec["results"] else 1
+            if len(buffer) >= chunk:
+                flush()
+    finally:
+        flush()
     return FdaPullResult(
-        n_drugs=len(records),
-        n_empty=sum(1 for r in records if not r["results"]),
+        n_drugs=n_fetched,
+        n_empty=n_empty,
         stopped_early=stopped,
+        n_skipped=n_skipped,
+        n_failed=n_failed,
     )

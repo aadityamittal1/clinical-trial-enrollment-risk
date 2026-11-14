@@ -1,10 +1,12 @@
 """Shared HTTP helper: GET with exponential backoff on 429 / 5xx / transport errors."""
 
-from collections.abc import Mapping
+import time
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import httpx
 from tenacity import (
+    RetryCallState,
     Retrying,
     retry_if_exception,
     stop_after_attempt,
@@ -19,6 +21,22 @@ class RetryableStatus(httpx.HTTPStatusError):
     """429 or 5xx response."""
 
 
+MAX_RETRY_AFTER_S = 120.0
+
+
+def _retry_after(state: RetryCallState) -> float:
+    """Seconds from a numeric ``Retry-After`` header on a 429/503 response, else 0."""
+    outcome = state.outcome
+    exc = outcome.exception() if outcome is not None else None
+    if isinstance(exc, RetryableStatus):
+        value = exc.response.headers.get("Retry-After", "")
+        try:
+            return min(max(float(value), 0.0), MAX_RETRY_AFTER_S)
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
 def _retryable(exc: BaseException) -> bool:
     return isinstance(exc, RetryableStatus | httpx.TransportError)
 
@@ -31,6 +49,7 @@ def get_with_retry(
     max_attempts: int = 6,
     wait: wait_base = DEFAULT_WAIT,
     ok_statuses: tuple[int, ...] = (),
+    sleep: Callable[[float], None] = time.sleep,
 ) -> httpx.Response:
     """GET ``url``; retry 429/5xx/timeouts; raise ``httpx.HTTPStatusError`` otherwise.
 
@@ -51,7 +70,8 @@ def get_with_retry(
     retrying = Retrying(
         retry=retry_if_exception(_retryable),
         stop=stop_after_attempt(max_attempts),
-        wait=wait,
+        wait=lambda state: max(float(wait(state)), _retry_after(state)),
+        sleep=sleep,
         reraise=True,
     )
     return retrying(attempt)

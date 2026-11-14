@@ -115,6 +115,21 @@ def test_committed_sample_matches_readme(tmp_path: Path) -> None:
     wh.close()
 
 
+def test_failed_tracking_insert_rolls_back_rows(landing: FileStorage, tmp_path: Path) -> None:
+    class Flaky(DuckDBWarehouse):
+        def execute(self, sql: str, params: Any = None) -> None:
+            if sql.startswith("insert into raw._loaded_files"):
+                raise RuntimeError("crash")
+            super().execute(sql, params)
+
+    flaky = Flaky(tmp_path / "flaky.duckdb")
+    with pytest.raises(RuntimeError):
+        load.load_files(landing, flaky)
+    assert count(flaky, "raw.ctgov_studies") == 0
+    assert count(flaky, "raw.fda_event_counts") == 0
+    flaky.close()
+
+
 def test_cli_load_sample_into_fresh_duckdb(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
