@@ -43,9 +43,18 @@ kind load docker-image --name "$CLUSTER" \
 echo "==> namespace and Secret (values come from .env / generated, never from the repo)"
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
-# Azurite account key is generated per cluster; nothing is committed.
+# Azurite account key is generated once per cluster; nothing is committed.
+# Re-runs reuse the key already in the Secret, otherwise running pods would
+# keep the old key and get 403s.
 AZURITE_ACCOUNT="devstore"
-AZURITE_KEY="$(openssl rand -base64 32)"
+AZURITE_KEY=""
+if kubectl -n "$NAMESPACE" get secret trial-risk-secrets >/dev/null 2>&1; then
+  EXISTING="$(kubectl -n "$NAMESPACE" get secret trial-risk-secrets -o jsonpath='{.data.AZURITE_ACCOUNTS}' | base64 -d)"
+  AZURITE_KEY="${EXISTING#*:}"
+fi
+if [ -z "$AZURITE_KEY" ]; then
+  AZURITE_KEY="$(openssl rand -base64 32)"
+fi
 AZURE_CONN="DefaultEndpointsProtocol=http;AccountName=${AZURITE_ACCOUNT};AccountKey=${AZURITE_KEY};BlobEndpoint=http://trial-risk-azurite:10000/${AZURITE_ACCOUNT};"
 
 kubectl -n "$NAMESPACE" create secret generic trial-risk-secrets \
@@ -69,11 +78,18 @@ helm upgrade --install airflow apache-airflow/airflow \
   -f deploy/helm/airflow-values-local.yaml \
   --timeout 10m
 
+# A re-tagged ":local" image is only picked up by new pods, and a changed
+# Secret only by restarted ones. Azurite is NOT restarted (its data is an
+# emptyDir and would be lost).
+echo "==> restart workloads to pick up rebuilt images / Secret"
+kubectl -n "$NAMESPACE" rollout restart deployment/trial-risk-serving deployment/trial-risk-mlflow
+kubectl -n "$NAMESPACE" rollout restart deployment/airflow-scheduler deployment/airflow-webserver 2>/dev/null || true
+
 cat <<'MSG'
 
 Stack is starting. Check with: kubectl -n trial-risk get pods
   Airflow UI:  http://localhost:8080  (default chart user; change it)
-  Scoring API: kubectl -n trial-risk port-forward svc/trial-risk-serving 8000:8000
+  Scoring API: http://localhost:8000/health  (NodePort 30081 mapped by kind)
   MLflow UI:   kubectl -n trial-risk port-forward svc/trial-risk-mlflow 5000:5000
 Tear down with: deploy/local-down.sh
 MSG

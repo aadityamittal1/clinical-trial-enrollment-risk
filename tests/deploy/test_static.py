@@ -143,7 +143,7 @@ def test_tofu_has_required_resources() -> None:
         'resource "azurerm_key_vault"',
         'sku_tier            = "Free"',
         "key_vault_secrets_provider",
-        'resource "azurerm_consumption_budget_resource_group"',
+        'resource "azurerm_consumption_budget_subscription"',
     ):
         assert needle in main, needle
     assert re.findall(r"threshold\s*=\s*(\d+)", main) == ["50", "80", "100"]
@@ -210,39 +210,129 @@ def test_probes_on_health() -> None:
 
 # --------------------------------------------------------------- secret scan
 
+# A value counts as a placeholder (allowed) when it is empty, "" / '' or starts
+# with $, {{ or < (optionally after a quote).
+_KEYWORD = r"(?i)(?:password|passwd|secret|token|api_?key)\w*\s*(?:[:=])(?!-)\s*"
 SECRET_PATTERNS = {
     "account key": re.compile(r"AccountKey=(?!\$\{)[A-Za-z0-9+/=]{20,}"),
     "private key": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-    "github token": re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}"),
-    "aws key": re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    "github token": re.compile(r"(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{30,}"),
+    "aws key": re.compile(r"(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])"),
     "sas token": re.compile(r"[?&]sig=[A-Za-z0-9%+/=]{20,}"),
     "long base64": re.compile(r"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{40,}={0,2}(?![A-Za-z0-9+/])"),
-    "password literal": re.compile(
-        r"(?i)\b(password|passwd|secret|token|api_?key)\b\s*[:=]\s*['\"]?(?!\$|\{|<|\"\"|'')"
-        r"[A-Za-z0-9!@#%^&*_\-+/=]{8,}"
-    ),
+    "credential assignment": re.compile(_KEYWORD + r"['\"]?(?!\$|\{\{|<|['\"]|\s|$)\S{8,}"),
 }
+
+
+def scan_line(line: str) -> list[str]:
+    return [label for label, rx in SECRET_PATTERNS.items() if rx.search(line)]
+
+
+def _utf8_text(p: Path) -> str | None:
+    try:
+        return p.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return None
 
 
 def test_no_secret_values_under_deploy() -> None:
     offenders = []
+    scanned = 0
     for p in _files():
-        if p.suffix not in TEXT_SUFFIXES:
+        text = _utf8_text(p)
+        if text is None:
             continue
-        for lineno, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
-            stripped = line.strip()
-            if stripped.startswith(("#", "--")):
-                continue
-            for label, rx in SECRET_PATTERNS.items():
-                m = rx.search(line)
-                if m and not _allowed(p, line):
-                    offenders.append(f"{p.relative_to(ROOT)}:{lineno}: {label}")
+        scanned += 1
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for label in scan_line(line):
+                offenders.append(f"{p.relative_to(ROOT)}:{lineno}: {label}")
+    assert scanned >= 25
     assert not offenders, "\n".join(offenders)
 
 
-def _allowed(path: Path, line: str) -> bool:
-    # Variable declarations / references, not values.
-    return bool(re.search(r"TF_VAR_|var\.|secretKeyRef|secretRef|\.Values\.|--from-literal", line))
+def test_secret_scanner_catches_known_shapes() -> None:
+    leaked = [
+        "SNOWFLAKE_PASSWORD: hunter2hunter2",
+        "OPENFDA_API_KEY=abcd1234efgh",
+        "  password = \"S3cretValue99\"",
+        "# token: ghp_" + "a" * 36,
+        "--from-literal=SNOWFLAKE_PASSWORD=plaintext123",
+        "DefaultEndpointsProtocol=http;AccountName=x;AccountKey=" + "A" * 40 + "==;",
+        "AKIA" + "A" * 16,
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "blob = " + "Ab1/" * 12,
+    ]
+    for line in leaked:
+        assert scan_line(line), f"scanner missed: {line}"
+
+
+def test_secret_scanner_allows_placeholders() -> None:
+    ok = [
+        'SNOWFLAKE_PASSWORD: ""',
+        '--from-literal=SNOWFLAKE_PASSWORD="${SNOWFLAKE_PASSWORD:-}"',
+        'export TF_VAR_snowflake_password="${TF_VAR_snowflake_password:-destroy-only}"',
+        "secretName: {{ .Values.secrets.name }}",
+        "AccountKey=${AZURITE_KEY};",
+        "secrets: {}",
+        "objectType: secret",
+        "AZURE_TENANT_ID = '<AZURE_TENANT_ID>'",
+    ]
+    for line in ok:
+        assert not scan_line(line), f"false positive: {line} -> {scan_line(line)}"
+
+
+def test_airflow_env_contract_exact() -> None:
+    expected = {
+        "TRIAL_RISK_MODE", "TRIAL_RISK_NAMESPACE", "TRIAL_RISK_IMAGE",
+        "TRIAL_RISK_IMAGE_PULL_POLICY", "TRIAL_RISK_CONFIGMAP", "TRIAL_RISK_SECRET",
+        "TRIAL_RISK_DUCKDB_PVC", "TRIAL_RISK_DUCKDB_MOUNT",
+    }
+    modes = {"airflow-values-local.yaml": ("local", "IfNotPresent"),
+             "airflow-values-aks.yaml": ("cloud", "Always")}
+    for name, (mode, pull) in modes.items():
+        v = yaml.safe_load((DEPLOY / "helm" / name).read_text(encoding="utf-8"))
+        env = {e["name"]: e["value"] for e in v["env"]}
+        assert set(env) == expected, name
+        assert len(v["env"]) == len(expected), f"{name}: duplicate env names"
+        assert env["TRIAL_RISK_MODE"] == mode
+        assert env["TRIAL_RISK_IMAGE_PULL_POLICY"] == pull
+        assert env["TRIAL_RISK_NAMESPACE"] == "trial-risk"
+        assert env["TRIAL_RISK_DUCKDB_PVC"] == "trial-risk-warehouse"
+    up = (DEPLOY / "cloud-up.sh").read_text(encoding="utf-8")
+    assert "env[" not in up, "cloud-up.sh must not use positional env --set"
+    assert "TRIAL_RISK_MODE" in up
+
+
+def test_serving_nodeport_local() -> None:
+    local = yaml.safe_load((CHART / "values-local.yaml").read_text(encoding="utf-8"))
+    assert local["serving"]["service"] == {"type": "NodePort", "nodePort": 30081}
+    kind = yaml.safe_load((DEPLOY / "kind" / "cluster.yaml").read_text(encoding="utf-8"))
+    ports = kind["nodes"][0]["extraPortMappings"]
+    assert {"containerPort": 30081, "hostPort": 8000, "protocol": "TCP"} in ports
+
+
+def test_budget_is_subscription_scoped_and_destroy_safe() -> None:
+    main = (DEPLOY / "tofu" / "main.tf").read_text(encoding="utf-8")
+    assert "azurerm_consumption_budget_subscription" in main
+    assert "azurerm_consumption_budget_resource_group" not in main
+    assert "time_sleep" in main
+    down = (DEPLOY / "cloud-down.sh").read_text(encoding="utf-8")
+    assert "TF_VAR_snowflake_password" in down
+    code = [ln for ln in down.splitlines() if not ln.lstrip().startswith("#")]
+    assert not any("helm uninstall" in ln for ln in code)
+    assert "terraform.tfvars" in down
+
+
+def test_local_up_is_rerunnable() -> None:
+    up = (DEPLOY / "local-up.sh").read_text(encoding="utf-8")
+    assert "get secret trial-risk-secrets" in up
+    assert "rollout restart" in up
+    assert "kind load docker-image" in up
+
+
+def test_snowflake_role_reachable() -> None:
+    sql = (DEPLOY / "snowflake" / "setup.sql").read_text(encoding="utf-8")
+    assert "GRANT ROLE TRIAL_RISK_ROLE TO ROLE SYSADMIN" in sql
 
 
 def test_no_terraform_state_or_tfvars_committed() -> None:

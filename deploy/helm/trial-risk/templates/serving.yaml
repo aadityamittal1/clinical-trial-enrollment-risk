@@ -78,7 +78,7 @@ metadata:
     app.kubernetes.io/name: serving
     {{- include "trial-risk.labels" . | nindent 4 }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.serving.service.type }}
   selector:
     app.kubernetes.io/name: serving
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -86,3 +86,6 @@ spec:
     - name: http
       port: {{ .Values.serving.port }}
       targetPort: http
+      {{- if and (eq .Values.serving.service.type "NodePort") .Values.serving.service.nodePort }}
+      nodePort: {{ .Values.serving.service.nodePort }}
+      {{- end }}

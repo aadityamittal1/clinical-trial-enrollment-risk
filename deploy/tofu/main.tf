@@ -70,18 +70,33 @@ resource "azurerm_role_assignment" "csi_kv_user" {
   principal_id         = azurerm_kubernetes_cluster.main.key_vault_secrets_provider[0].secret_identity[0].object_id
 }
 
+# Azure RBAC propagation can take a minute; writing secrets too early gets 403.
+resource "time_sleep" "kv_rbac_propagation" {
+  create_duration = "60s"
+  depends_on      = [azurerm_role_assignment.deployer_kv_officer]
+}
+
 resource "azurerm_key_vault_secret" "storage_connection_string" {
   name         = "azure-storage-connection-string"
   value        = azurerm_storage_account.main.primary_connection_string
   key_vault_id = azurerm_key_vault.main.id
-  depends_on   = [azurerm_role_assignment.deployer_kv_officer]
+  depends_on   = [time_sleep.kv_rbac_propagation]
 }
 
 resource "azurerm_key_vault_secret" "snowflake_password" {
   name         = "snowflake-password"
   value        = var.snowflake_password
   key_vault_id = azurerm_key_vault.main.id
-  depends_on   = [azurerm_role_assignment.deployer_kv_officer]
+  depends_on   = [time_sleep.kv_rbac_propagation]
+}
+
+# Optional: only created when an openFDA key is supplied.
+resource "azurerm_key_vault_secret" "openfda_api_key" {
+  count        = nonsensitive(var.openfda_api_key != "") ? 1 : 0
+  name         = "openfda-api-key"
+  value        = var.openfda_api_key
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [time_sleep.kv_rbac_propagation]
 }
 
 # -------------------------------------------------------------------- aks
@@ -111,11 +126,14 @@ resource "azurerm_kubernetes_cluster" "main" {
 
 # ----------------------------------------------------------------- budget
 
-resource "azurerm_consumption_budget_resource_group" "main" {
-  name              = "budget-${var.name_prefix}"
-  resource_group_id = azurerm_resource_group.main.id
-  amount            = var.budget_amount
-  time_grain        = "Monthly"
+# Subscription scope on purpose: AKS puts the node VM, disk, load balancer and
+# public IP in the auto-created MC_* node resource group, which a budget on
+# rg-<prefix> alone would miss.
+resource "azurerm_consumption_budget_subscription" "main" {
+  name            = "budget-${var.name_prefix}"
+  subscription_id = "/subscriptions/${var.subscription_id}"
+  amount          = var.budget_amount
+  time_grain      = "Monthly"
 
   time_period {
     start_date = var.budget_start_date

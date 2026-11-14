@@ -44,6 +44,9 @@ secrets:
 serving:
   replicas: 1
   port: 8000
+  service:
+    type: ClusterIP
+    nodePort: 0
   resources:
     requests:
       cpu: 100m
@@ -68,7 +71,6 @@ mlflow:
 
 azurite:
   enabled: false
-  accountName: devstore
   resources:
     requests:
       cpu: 50m
@@ -94,6 +96,8 @@ rbac:
 
 keyVault:
   enabled: false
+  # Set true only when the openfda-api-key secret exists in Key Vault.
+  openfdaApiKey: false
   name: ""
   tenantId: ""
   clientId: ""

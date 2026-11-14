@@ -16,11 +16,15 @@ config:
 
 azurite:
   enabled: true
-  accountName: devstore
 
 duckdb:
   persistence:
     enabled: true
+
+serving:
+  service:
+    type: NodePort
+    nodePort: 30081
 
 mlflow:
   artifactRoot: wasbs://mlflow@devstore.blob.core.windows.net/

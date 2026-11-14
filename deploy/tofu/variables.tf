@@ -34,7 +34,7 @@ variable "budget_amount" {
 }
 
 variable "budget_start_date" {
-  description = "First day of a month, RFC3339 (budget period start)."
+  description = "First day of the CURRENT month, RFC3339. Azure rejects start dates in the past months; update it when you re-apply in a later month."
   type        = string
   default     = "2026-11-01T00:00:00Z"
 }
@@ -44,21 +44,16 @@ variable "budget_alert_emails" {
   type        = list(string)
 }
 
-variable "snowflake_account" {
-  description = "Snowflake account identifier (not a secret)."
-  type        = string
-  default     = ""
-}
-
-variable "snowflake_user" {
-  description = "Snowflake user name (not a secret)."
-  type        = string
-  default     = ""
-}
-
 variable "snowflake_password" {
-  description = "Snowflake password. Supply via TF_VAR_snowflake_password or an untracked tfvars file."
+  description = "Snowflake password. Supply via TF_VAR_snowflake_password. cloud-down.sh supplies a throwaway value for destroy."
   type        = string
+  sensitive   = true
+}
+
+variable "openfda_api_key" {
+  description = "Optional openFDA API key. Empty means no Key Vault secret is created."
+  type        = string
+  default     = ""
   sensitive   = true
 }
 

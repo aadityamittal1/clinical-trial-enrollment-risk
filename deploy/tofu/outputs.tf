@@ -22,6 +22,11 @@ output "tenant_id" {
   value = data.azurerm_client_config.current.tenant_id
 }
 
+output "openfda_secret_created" {
+  description = "True when the optional openfda-api-key Key Vault secret exists."
+  value       = length(azurerm_key_vault_secret.openfda_api_key) > 0
+}
+
 output "key_vault_csi_client_id" {
   description = "Client ID of the Key Vault CSI add-on identity (SecretProviderClass userAssignedIdentityID)."
   value       = azurerm_kubernetes_cluster.main.key_vault_secrets_provider[0].secret_identity[0].client_id
