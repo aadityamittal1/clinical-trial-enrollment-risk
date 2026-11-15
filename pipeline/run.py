@@ -25,6 +25,14 @@ log = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parents[1]
 DBT_DIR = REPO / "dbt"
+SNOWFLAKE_FIELDS = (
+    "snowflake_account",
+    "snowflake_user",
+    "snowflake_password",
+    "snowflake_role",
+    "snowflake_warehouse",
+    "snowflake_database",
+)
 LAYERS = ("raw", "staging", "marts")
 
 Source = Literal["sample", "live"]
@@ -80,6 +88,26 @@ def _run_ingestion(step: str, argv: list[str]) -> None:
         raise StepError(step, f"`python -m ingestion {' '.join(argv)}` exited with {code}")
 
 
+def _load_sample(settings: Settings) -> None:
+    from common.storage import FileStorage
+    from ingestion import load
+
+    try:
+        wh = get_warehouse(settings)
+        try:
+            res = load.load_files(
+                FileStorage(REPO / "data" / "sample"),
+                wh,
+                dialect=settings.warehouse,
+                source_label="sample",
+            )
+        finally:
+            wh.close()
+    except Exception as exc:
+        raise StepError("load", f"{type(exc).__name__}: {exc}") from exc
+    print(f"load: {res.files_loaded} files, {res.rows_loaded} rows", flush=True)
+
+
 def _dbt(step: str, settings: Settings, select: str | None = None) -> None:
     target = "local" if settings.mode == "local" else "cloud"
     cmd = [
@@ -99,6 +127,11 @@ def _dbt(step: str, settings: Settings, select: str | None = None) -> None:
     env = {**os.environ, "DBT_SEND_ANONYMOUS_USAGE_STATS": "false", "PYTHONUTF8": "1"}
     # dbt reads DUCKDB_PATH itself; pass the resolved value so .env / defaults apply too.
     env["DUCKDB_PATH"] = str(Path(settings.duckdb_path).resolve())
+    # Credentials that live only in .env never reach os.environ; hand dbt the resolved values.
+    for key in SNOWFLAKE_FIELDS:
+        value = getattr(settings, key)
+        if value is not None:
+            env[key.upper()] = value
     print(f"[{step}] {' '.join(cmd[2:])}", flush=True)
     proc = subprocess.run(
         cmd, cwd=REPO, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace"
@@ -173,7 +206,10 @@ def run_pipeline(
         _run_ingestion("ingest-ctgov", args)
         args = ["fda"] + (["--max-drugs", str(max_drugs)] if max_drugs is not None else [])
         _run_ingestion("ingest-fda", args)
-    _run_ingestion("load", ["load", "--source", "sample" if source == "sample" else "landing"])
+    if source == "sample":
+        _load_sample(settings)  # absolute path: independent of the working directory
+    else:
+        _run_ingestion("load", ["load", "--source", "landing"])
     _dbt("dbt-build", settings)
 
     registered = _registered(settings)

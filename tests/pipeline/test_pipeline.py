@@ -94,15 +94,61 @@ def test_end_to_end_sample_then_rerun_reuses_model(tmp_path: Path) -> None:
 
 def test_failing_step_is_named(tmp_path: Path) -> None:
     env = _env(tmp_path)
-    env["LANDING_DIR"] = str(tmp_path / "empty_landing")
-    # live ingestion would hit the network, so break an offline step instead: dbt cannot build
-    # against an unwritable warehouse path.
+    # Break the offline "load" step: the warehouse path's parent is a regular file, so the
+    # warehouse cannot be created.
     env["DUCKDB_PATH"] = str(tmp_path / "wh_is_a_file" / "x" / "y.duckdb")
     blocker = tmp_path / "wh_is_a_file"
     blocker.write_text("not a directory")
     proc = _pipeline(env, "--source", "sample")
     assert proc.returncode != 0
-    assert "pipeline FAILED at step 'load'" in proc.stderr
+    assert "step 'load' failed" in proc.stderr
+
+
+def test_failing_dbt_step_is_named(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pipeline.run as run
+
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(["dbt"], 1, stdout="1 of 3 ERROR model x", stderr="")
+
+    monkeypatch.setattr("pipeline.run.subprocess.run", fake_run)
+    settings = Settings(
+        duckdb_path=str(tmp_path / "wh" / "t.duckdb"),
+        mlflow_tracking_uri="sqlite:///" + (tmp_path / "m" / "m.db").as_posix(),
+    )
+    with pytest.raises(run.StepError) as info:
+        run.run_pipeline("sample", settings=settings, echo=lambda _: None)
+    assert info.value.step == "dbt-build"
+    assert "step 'dbt-build' failed" in str(info.value)
+    assert "ERROR model x" in str(info.value)
+
+
+def test_sample_load_is_independent_of_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pipeline.run as run
+
+    monkeypatch.chdir(tmp_path)
+    settings = Settings(duckdb_path=str(tmp_path / "wh.duckdb"))
+    run._load_sample(settings)
+    assert _scalar(settings.duckdb_path, "select count(*) from raw.ctgov_studies") > 0
+
+
+def test_dbt_env_carries_snowflake_settings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pipeline.run as run
+
+    seen: dict[str, str] = {}
+
+    def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        seen.update(kwargs["env"])  # type: ignore[call-overload]
+        seen["target"] = cmd[cmd.index("--target") + 1]
+        return subprocess.CompletedProcess(cmd, 0, stdout="Done. PASS=1", stderr="")
+
+    monkeypatch.setattr("pipeline.run.subprocess.run", fake_run)
+    settings = Settings(mode="cloud", snowflake_account="acc", snowflake_password="pw")
+    run._dbt("dbt-build", settings)
+    assert seen["target"] == "cloud"
+    assert seen["SNOWFLAKE_ACCOUNT"] == "acc"
+    assert seen["SNOWFLAKE_PASSWORD"] == "pw"
 
 
 @pytest.mark.parametrize("flags", [["--retrain", "--skip-train"]])

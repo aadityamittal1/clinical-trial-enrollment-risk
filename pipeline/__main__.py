@@ -39,7 +39,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             max_drugs=args.max_drugs,
         )
     except StepError as exc:
-        print(f"pipeline FAILED at {exc}", file=sys.stderr)
+        print(f"pipeline FAILED: {exc}", file=sys.stderr)
         return 1
     print(summary.render())
     return 0

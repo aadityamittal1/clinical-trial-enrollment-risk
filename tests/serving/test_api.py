@@ -8,8 +8,9 @@ import pytest
 
 from common.config import Settings
 from ml.features import FEATURES
+from ml.predict import FeatureMismatchError
 from ml.train import train
-from serving.app import create_app
+from serving.app import MODEL_RECHECK_SECONDS, create_app
 from tests.serving.conftest import Env
 
 with warnings.catch_warnings():
@@ -166,3 +167,105 @@ def test_batch_writes_rows(api_env: Env) -> None:
     finally:
         con.close()
     assert n == body["rows_written"]
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        {"n_sites": "abc"},
+        {"n_sites": True},
+        {"phase": 3},
+        {"has_drug": "yes"},
+        {"has_drug": 2},
+        {"nct_id": 123},
+        {"n_arms": [1]},
+        {"n_arms": {"a": 1}},
+    ],
+)
+def test_score_rejects_mistyped_features(api_env: Env, row: dict[str, object]) -> None:
+    with TestClient(create_app()) as client:
+        assert client.post("/score", json={"features": [row]}).status_code == 422
+
+
+def test_health_status_no_model(no_model_env: Env) -> None:
+    with TestClient(create_app()) as client:
+        body = client.get("/health").json()
+        r = client.post("/score", json={"nct_ids": ["NCT00000001"]})
+    assert body["status"] == "no_model"
+    assert body["model_loaded"] is False
+    assert r.status_code == 503
+    assert r.json()["detail"].startswith("no_model")
+
+
+def test_health_status_degraded_when_registry_unreachable(
+    no_model_env: Env, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    blocker = tmp_path / "a_file"
+    blocker.write_text("x")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "sqlite:///" + (blocker / "sub" / "m.db").as_posix())
+    with TestClient(create_app()) as client:  # startup must not fail
+        h = client.get("/health")
+        assert h.status_code == 200
+        body = h.json()
+        assert body["status"] == "degraded"
+        assert body["model_loaded"] is False
+        assert "registry unavailable" in body["detail"]
+        for r in (
+            client.post("/score", json={"nct_ids": ["NCT00000001"]}),
+            client.post("/score/batch"),
+        ):
+            assert r.status_code == 503
+            assert r.json()["detail"].startswith("degraded")
+
+
+def test_health_status_degraded_on_feature_mismatch(
+    api_env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(settings: object) -> object:
+        raise FeatureMismatchError("secret details that must not leak")
+
+    monkeypatch.setattr("serving.app.load_model", boom)
+    with TestClient(create_app()) as client:
+        body = client.get("/health").json()
+        r = client.post("/score", json={"nct_ids": ["NCT00000001"]})
+    assert body["status"] == "degraded"
+    assert "feature list" in body["detail"]
+    assert "secret" not in body["detail"]
+    assert r.status_code == 503
+    assert "feature list" in r.json()["detail"]
+
+
+def test_new_model_version_picked_up_after_recheck_interval(no_model_env: Env) -> None:
+    now = [1000.0]
+    settings = Settings(
+        duckdb_path=str(no_model_env.duckdb), mlflow_tracking_uri=no_model_env.mlflow_uri
+    )
+    train(settings)
+    ids = _open_ids(no_model_env.duckdb, 1)
+    with TestClient(create_app(clock=lambda: now[0])) as client:
+        assert client.get("/health").json()["model_version"] == "1"
+        train(settings)  # registers v2
+        now[0] += MODEL_RECHECK_SECONDS - 1
+        assert client.get("/health").json()["model_version"] == "1"  # not re-checked yet
+        now[0] += 2
+        assert client.get("/health").json()["model_version"] == "2"
+        r = client.post("/score", json={"nct_ids": ids})
+        assert r.json()["model_version"] == "2"
+        assert client.post("/score/batch").json()["model_version"] == "2"
+
+
+def test_batch_503_when_warehouse_busy(api_env: Env, monkeypatch: pytest.MonkeyPatch) -> None:
+    def busy(*args: object, **kwargs: object) -> int:
+        raise duckdb.TransactionException("conflict with a concurrent writer")
+
+    monkeypatch.setattr("serving.app.batch_score", busy)
+    with TestClient(create_app()) as client:
+        r = client.post("/score/batch")
+    assert r.status_code == 503
+    assert "warehouse unavailable" in r.json()["detail"]
+
+
+def test_batch_endpoint_documents_no_auth() -> None:
+    doc = create_app().openapi()["paths"]["/score/batch"]["post"]["description"]
+    assert "no authentication" in doc.lower()
+    assert "ml_scores" in doc
