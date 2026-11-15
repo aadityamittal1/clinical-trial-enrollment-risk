@@ -79,11 +79,30 @@ helm upgrade --install airflow apache-airflow/airflow \
   --timeout 10m
 
 # A re-tagged ":local" image is only picked up by new pods, and a changed
-# Secret only by restarted ones. Azurite is NOT restarted (its data is an
-# emptyDir and would be lost).
+# Secret only by restarted ones. Azurite is NOT restarted (it uses neither
+# rebuilt image, and a restart is not needed to keep its key).
 echo "==> restart workloads to pick up rebuilt images / Secret"
 kubectl -n "$NAMESPACE" rollout restart deployment/trial-risk-serving deployment/trial-risk-mlflow
-kubectl -n "$NAMESPACE" rollout restart deployment/airflow-scheduler deployment/airflow-webserver 2>/dev/null || true
+
+# The Airflow chart runs the scheduler as a Deployment or a StatefulSet
+# depending on version/executor; try both, each on its own, and only tolerate
+# "not found" (any other error still stops the script).
+restart_airflow() {
+  local name="$1" kind out
+  for kind in deployment statefulset; do
+    if out="$(kubectl -n "$NAMESPACE" rollout restart "${kind}/${name}" 2>&1)"; then
+      echo "$out"
+      return 0
+    fi
+    case "$out" in
+      *NotFound*|*"not found"*) ;;
+      *) echo "$out" >&2; return 1 ;;
+    esac
+  done
+  echo "note: ${name} not found as a deployment or statefulset; not restarted" >&2
+}
+restart_airflow airflow-scheduler
+restart_airflow airflow-webserver
 
 cat <<'MSG'
 
@@ -91,5 +110,7 @@ Stack is starting. Check with: kubectl -n trial-risk get pods
   Airflow UI:  http://localhost:8080  (default chart user; change it)
   Scoring API: http://localhost:8000/health  (NodePort 30081 mapped by kind)
   MLflow UI:   kubectl -n trial-risk port-forward svc/trial-risk-mlflow 5000:5000
-Tear down with: deploy/local-down.sh
+First run: trigger the trial_risk_sample DAG (bootstrap: data, model, scores)
+before relying on trial_risk_daily, which never trains a model.
+Tear down (and reset all state) with: deploy/local-down.sh
 MSG

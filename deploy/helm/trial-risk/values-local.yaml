@@ -16,6 +16,8 @@ config:
 
 azurite:
   enabled: true
+  persistence:
+    enabled: true
 
 duckdb:
   persistence:

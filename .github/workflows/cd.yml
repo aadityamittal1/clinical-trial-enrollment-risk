@@ -67,9 +67,12 @@ jobs:
           resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
           cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
       - name: Helm upgrade
+        # --reuse-values keeps what deploy/cloud-up.sh set on the release (keyVault.*,
+        # mlflow.artifactRoot, config.SNOWFLAKE_ACCOUNT/USER); only the image tags change.
         run: |
           helm upgrade --install trial-risk deploy/helm/trial-risk \
             --namespace trial-risk --create-namespace \
+            --reuse-values \
             -f deploy/helm/trial-risk/values-aks.yaml \
             --set images.pipeline.repository=ghcr.io/${{ env.OWNER }}/trial-risk-pipeline \
             --set images.pipeline.tag=${{ github.sha }} \

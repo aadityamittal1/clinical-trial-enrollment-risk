@@ -56,6 +56,12 @@ Interventional studies only (`AREA[StudyType]INTERVENTIONAL`). Every matching NC
 
 openFDA: the 60 most common canonical DRUG/BIOLOGICAL names in the sample (`ingestion/drug_names.py`), one `count=patient.reaction.reactionmeddrapt.exact` request each. Study records are stored exactly as the API returned them.
 
+## Names and contact details in the records
+
+Because records are stored unedited, they include investigator / overall-official names and central and site contact names, email addresses and phone numbers, exactly as published by ClinicalTrials.gov (public registry data). No model, mart or dashboard uses these fields.
+
+To rebuild the sample: `uv run python -m ingestion sample` (needs network). It replaces `data/sample/ctgov/`, `data/sample/fda/` and this README with the registry's current state, so the counts above change, and so do the metrics in `docs/` once the model is retrained and re-evaluated.
+
 ## Licensing
 
 ClinicalTrials.gov and openFDA data are U.S. government works (public domain), so this snapshot can be committed for reproducibility. Do not use it for clinical decisions; openFDA data is unvalidated.

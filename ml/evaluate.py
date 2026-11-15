@@ -49,7 +49,8 @@ SOFT_LEAK_NOTE = (
     "kept on purpose). start_year mixes ACTUAL and ESTIMATED start dates."
 )
 RECALIBRATION_DECISION = (
-    "No recalibration is applied in v1 (controller decision): calibration is to be revisited "
+    "No recalibration is applied in v1 (project decision, see "
+    "docs/adr/0006-no-recalibration-in-v1.md): calibration is to be revisited "
     "on the full dataset, not on the oversampled sample."
 )
 

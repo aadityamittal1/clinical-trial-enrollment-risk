@@ -107,6 +107,7 @@ def test_snowflake_write_df_uses_unquoted_uppercase_identifiers() -> None:
         assert kwargs["schema"] == "MARTS"
         assert kwargs["quote_identifiers"] is False
         assert kwargs["overwrite"] is False
+        assert kwargs["use_logical_type"] is True
         wh.write_df(df, "marts", "ml_scores", mode="replace")
         assert tools.write_pandas.call_args.kwargs["overwrite"] is True
         assert list(df.columns) == ["nct_id", "risk_score"]  # caller's frame untouched

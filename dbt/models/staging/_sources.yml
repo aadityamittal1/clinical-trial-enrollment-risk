@@ -6,7 +6,7 @@ sources:
       Raw API responses written by `python -m ingestion load`. Append-only, one row per
       entity per load; never edited. Freshness thresholds come from the vars
       freshness_warn_after_hours / freshness_error_after_hours and are only evaluated by
-      `dbt source freshness` (the daily DAG can run it); `dbt build` does not check them.
+      `dbt source freshness` (task `source_freshness` in the daily DAG); `dbt build` does not check them.
     schema: raw
     config:
       loaded_at_field: loaded_at

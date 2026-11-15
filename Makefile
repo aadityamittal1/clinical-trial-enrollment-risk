@@ -5,7 +5,7 @@ setup:
 
 lint:
 	uv run ruff check .
-	uv run mypy common
+	uv run mypy common ingestion ml serving pipeline
 
 test:
 	uv run pytest

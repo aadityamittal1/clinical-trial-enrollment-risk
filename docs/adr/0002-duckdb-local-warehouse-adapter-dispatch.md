@@ -19,7 +19,7 @@ study parsing, the score table). Each macro has a `duckdb__` and a `snowflake__`
 
 - One set of models runs on both engines. A change to a model does not need two versions.
 - Only the DuckDB branch has been executed (157 models and tests pass on the sample). The Snowflake branch has been
-  parsed, compiled and syntax-checked with `sqlglot`, never run against Snowflake. Regex semantics can differ between RE2
-  (DuckDB) and POSIX ERE (Snowflake); patterns are written in the common subset to avoid that, but this is untested on
-  Snowflake.
+  parsed and compiled, and its SQL was syntax-checked once with `sqlglot` during development; no `sqlglot` check is
+  kept in the repo. It has never been run against Snowflake. Regex semantics can differ between RE2 (DuckDB) and POSIX
+  ERE (Snowflake); patterns are written in the common subset to avoid that, but this is untested on Snowflake.
 - DuckDB allows one writer at a time, so the pipeline and a BI tool reading the file cannot both write.

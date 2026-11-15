@@ -65,9 +65,10 @@ flowchart TB
   SF --> PBI
 ```
 
-Data flow, one daily batch run: pull both APIs to the landing zone, load raw tables, `dbt build` (staging, marts,
-tests), score all open trials with the registered model into `marts.ml_scores`, rebuild the marts that read the scores,
-refresh the dashboard. Raw data is never edited, so any layer can be rebuilt from it.
+Data flow, one daily batch run: pull both APIs to the landing zone, load raw tables, check source freshness
+(`dbt source freshness`, Airflow only), `dbt build` (staging, marts, tests), score all open trials with the registered
+model into `marts.ml_scores`, rebuild the marts that read the scores, refresh the dashboard (Power BI, cloud only; not
+run). Raw data is never edited, so any layer can be rebuilt from it.
 
 ### What swaps in local mode
 
@@ -76,7 +77,7 @@ refresh the dashboard. Raw data is never edited, so any layer can be rebuilt fro
 | Orchestration | Airflow on AKS | `python -m pipeline run` (in-process) | Airflow on kind |
 | Landing storage | Azure Blob | `STORAGE_BACKEND=file`, directory `data/landing` | Azurite |
 | Warehouse | Snowflake | DuckDB file | DuckDB file on a PersistentVolumeClaim |
-| BI | Power BI (Import mode) | Superset bundle (import not run) | Superset bundle |
+| BI | Power BI (Import mode) | Superset bundle (import not run) | Superset bundle only: Superset is not deployed by `local-up`; install it by hand per `bi/superset/README.md` |
 | Secrets | Key Vault | `.env` | Kubernetes Secret from `.env` |
 | Infrastructure as code | OpenTofu | not needed | not needed |
 
@@ -88,7 +89,8 @@ The switch is `MODE=local|cloud` (warehouse and dbt target) and `STORAGE_BACKEND
 Needs Python 3.12 and [uv](https://docs.astral.sh/uv/). Run from the repo root. `make` is optional; the `uv run`
 commands below are what the Makefile targets call. Defaults come from `.env.example` (copy it to `.env` if you want
 to change them): `STORAGE_BACKEND=file`, DuckDB at `data/warehouse/trialrisk.duckdb`, MLflow in
-`data/mlflow/mlflow.db`.
+`data/mlflow/mlflow.db`. On the Windows ARM64 build machine the uv environment uses an x86-64 CPython 3.12 (run under
+Windows' x64 emulation), not a native ARM64 build.
 
 ```bash
 git clone <your-fork>
@@ -155,24 +157,56 @@ baked in), creates a kind cluster named `trial-risk`, writes a Kubernetes Secret
 `trial-risk` Helm chart and the official Airflow chart. Serving is mapped to `localhost:8000` and the Airflow web UI to
 `localhost:8080`. **None of this has been run.**
 
+The Airflow DAGs (`dags/trial_risk_daily.py`, one Kubernetes pod per task):
+
+- `trial_risk_daily` (daily): `ingest_ctgov` → `ingest_fda` → `load_raw` → `source_freshness` → `dbt_build`
+  → `score` → `refresh_marts`. It scores with the registered model and **does not train**.
+- `trial_risk_train` (manual): `python -m ml train`.
+- `trial_risk_sample` (manual): `python -m pipeline run --source sample` in one pod (load the committed sample, dbt
+  build, train and register a model if none exists, score).
+
+Bootstrap order after `make local-up`: trigger `trial_risk_sample` in the Airflow UI (or run `trial_risk_daily` until
+`dbt_build` succeeds, then trigger `trial_risk_train`) **before** relying on the daily DAG's `score` step, which fails
+while no model is registered. The first daily run has no ClinicalTrials.gov watermark yet, so `ingest_ctgov` does a full
+backfill of about 500 API pages; later runs are incremental.
+
+Superset is **not** deployed by `local-up`. The dashboard bundle has to be installed and imported by hand, per
+`bi/superset/README.md`, against the DuckDB file on the `trial-risk-warehouse` volume.
+
+State lives on PersistentVolumeClaims in the kind cluster (DuckDB file, MLflow registry, Azurite blobs), so it survives
+pod restarts and re-runs of `local-up`. To reset everything, delete the cluster (`make local-down`, or
+`kind delete cluster --name trial-risk`).
+
 ### Cloud: Azure, AKS, Snowflake, Power BI
 
 ```bash
-cp deploy/tofu/terraform.tfvars.example deploy/tofu/terraform.tfvars   # fill in
-GHCR_OWNER=<your-github-owner> make cloud-up     # OpenTofu apply, AKS credentials, Helm
+cp deploy/tofu/terraform.tfvars.example deploy/tofu/terraform.tfvars   # fill in (git-ignored)
+export TF_VAR_snowflake_password=...              # never in a file
+GHCR_OWNER=<your-github-owner> SNOWFLAKE_ACCOUNT=<orgname-accountname> SNOWFLAKE_USER=TRIAL_RISK_SVC \
+  make cloud-up                                   # OpenTofu apply, AKS credentials, Helm
 make cloud-down                                   # OpenTofu destroy
 ```
+
+`cloud-up` stops early if `GHCR_OWNER`, `SNOWFLAKE_ACCOUNT` or `SNOWFLAKE_USER` is unset. OpenTofu state
+(`deploy/tofu/terraform.tfstate`) is written locally and holds the Snowflake password and storage key in plaintext; it
+is git-ignored, keep it that way.
 
 Also needed: `deploy/snowflake/setup.sql` run by hand in a Snowflake account (placeholders for tenant and storage
 account), then the Power BI project in `bi/powerbi/` opened in Power BI Desktop (Windows only). **None of this has been
 run.**
+
+Snowflake sign-in is password-only today (`common/warehouse.py`, `dbt/profiles.yml`, Key Vault). Snowflake is retiring
+single-factor password sign-in, so key-pair authentication will likely be needed before the first cloud run; it is
+**not wired yet**.
 
 ### Verify on first real run
 
 The unverified pieces, in the order to try them. Expect to fix things at each step.
 
 1. `docker build` for the three images in `deploy/docker/` (`pipeline`, `serving`, `airflow`). They assume `uv.lock`
-   and the app directories exist in the build context and that the `cloud` extra installs.
+   and the app directories exist in the build context and that the `cloud` extra installs. The pipeline and serving
+   images copy uv from `ghcr.io/astral-sh/uv:0.11.19`, the uv version that wrote `uv.lock`; that the tag exists on
+   GHCR is unconfirmed (an older uv may reject the lock file in `uv sync --frozen`).
 2. `helm lint` and `helm template` for `deploy/helm/trial-risk` with both `values-local.yaml` and `values-aks.yaml`
    (also with `--set keyVault.enabled=true`). Then `helm template` for the official Airflow chart (pinned to 1.15.0,
    Airflow 2.10.5) with `deploy/helm/airflow-values-*.yaml`: confirm the keys are accepted and that the PostgreSQL
@@ -181,15 +215,20 @@ The unverified pieces, in the order to try them. Expect to fix things at each st
    through a `wasbs://` artifact URI, the Airflow `rollout restart` deployment names, and the DuckDB PVC permissions
    (the pods run as uid 10001).
 4. `tofu -chdir=deploy/tofu init && tofu validate && tofu plan`. The azurerm 4.x attribute names and the
-   subscription-scoped budget are the likely failures.
-5. Review `deploy/snowflake/setup.sql` in a Snowflake trial account, then the first `dbt build --target cloud`. The
+   subscription-scoped budget are the likely failures. One `Standard_B2s` node (2 vCPU, 4 GiB) may be too small for
+   Airflow + Postgres + MLflow + serving + the task pods at once.
+5. Snowflake authentication: password-only sign-in for `TRIAL_RISK_SVC` will probably be rejected on a new account
+   (single-factor password retirement). Key-pair authentication will likely be needed before the first cloud run and is
+   not wired yet (see the comment at the user in `deploy/snowflake/setup.sql`).
+6. Review `deploy/snowflake/setup.sql` in a Snowflake trial account, then the first `dbt build --target cloud`. The
    Snowflake branches of the dbt macros (JSON paths, `FLATTEN`, regex, identifier case) have only been parsed and
    compiled, never executed. Also check the leakage test and source freshness on Snowflake.
-6. First Snowflake run of the Python paths in `common/` (`write_pandas` identifier handling) and the cloud branches of
-   the pipeline and serving.
-7. First Airflow run of both DAGs (`trial_risk_daily`, `trial_risk_train`); first push of the GitHub Actions workflows
-   (action versions were written from memory); first import of the Superset bundle.
-8. First open of `bi/powerbi/TrialRisk.pbip` in Power BI Desktop and first Snowflake refresh. The PBIR and TMDL schema
+7. First Snowflake run of the Python paths in `common/` (`write_pandas` identifier handling) and `ingestion/load.py`
+   (the staging-table + `parse_json` insert used for the sample load, and the `COPY INTO` path), and the cloud
+   branches of the pipeline and serving.
+8. First Airflow run of the three DAGs (`trial_risk_sample`, `trial_risk_daily`, `trial_risk_train`); first push of
+   the GitHub Actions workflows (action versions were written from memory); first import of the Superset bundle.
+9. First open of `bi/powerbi/TrialRisk.pbip` in Power BI Desktop and first Snowflake refresh. The PBIR and TMDL schema
    versions were written from memory, and the both-direction relationships may produce ambiguity warnings.
 
 ## Results
@@ -210,7 +249,7 @@ start year are dropped. PR-AUC (average precision) is the headline metric.
 - Both models are above the no-skill rate on validation and test. The test set has only 32 positives, so the gap
   between the two models is within noise.
 - LightGBM does not beat logistic regression on the test split (0.412 vs 0.431 PR-AUC; ROC-AUC 0.758 vs 0.778). It does
-  slightly better on validation.
+  slightly better on validation, also within noise.
 - LightGBM overfits the training years: train PR-AUC 0.947 against 0.316 on validation.
 - Test, LightGBM: Brier 0.096, log loss 0.329, ECE 0.032 (8 quantile bins).
 - Predicted probabilities run low on recent cohorts: mean predicted 0.117 against an observed rate of 0.154 on
@@ -318,7 +357,9 @@ The design target is $0 in local mode and a capped spend in cloud mode. These ar
 
 - Snowflake: one X-Small warehouse with `AUTO_SUSPEND = 60`, and a resource monitor (5-credit monthly quota) that
   suspends at 75% and immediately at 100% (`deploy/snowflake/setup.sql`).
-- AKS: free control-plane tier, one `Standard_B2s` node, region `eastus2` (`deploy/tofu/`).
+- AKS: free control-plane tier, one `Standard_B2s` node, region `eastus2` (`deploy/tofu/`). Between sessions the
+  cluster can be paused with `az aks stop --resource-group <rg> --name <cluster>` (and resumed with `az aks start`),
+  which stops node compute charges without destroying anything; storage and Key Vault still bill.
 - Azure: a $25 monthly budget scoped to the subscription, so spend in the AKS node resource group is covered, with
   email alerts at 50%, 80% and 100% of actual spend.
 - `make cloud-down` runs `tofu destroy`.
@@ -338,6 +379,12 @@ The design doc is `docs/design-doc.pdf`. Where the build departs from it:
 | DAGs baked into a derived Airflow image | Avoids a git-sync dependency; the image is rebuilt when DAGs change |
 | Azure budget scoped to the subscription | A resource-group budget would miss the AKS node resource group |
 | Synthea and RxNorm left out of v1 | Both were stretch goals in the design doc |
+| No planned-vs-actual enrollment in `fct_trial_outcomes` | The registry overwrites the planned enrollment count with the actual one when a trial closes, so the planned number is not available from the public API |
+| An intermediate dbt layer (`dbt/models/intermediate/`) between staging and marts | The condition-category derivation and the study-drug list are each used by several marts |
+| Dockerfiles under `deploy/docker/` | Keeps all deployment files in `deploy/` |
+| No `ml/notebooks/` | Analysis lives in the `python -m ml` commands, the model card and `docs/model_metrics.json` |
+| `make local-up && make run` does not by itself produce dashboards | `make run` builds the marts with the no-Docker path; Superset is not deployed by `local-up` and the bundle is imported by hand (`bi/superset/README.md`); Power BI is cloud only |
+| CI runs the pipeline twice, in different places | The fast `pipeline-sample` job runs it on the runner (no cluster); the `kind-e2e` job runs the same command in-cluster as a Job and then checks the API's `/health` |
 
 ## Open questions (from the design doc, still open)
 
@@ -358,7 +405,7 @@ dbt/           models (staging, intermediate, marts), macros with adapter dispat
 ml/            features, labels, split, train, evaluate, score, MLflow registry; python -m ml
 serving/       FastAPI app: POST /score, POST /score/batch, GET /health
 pipeline/      in-process end-to-end runner; python -m pipeline run
-dags/          Airflow DAGs: trial_risk_daily, trial_risk_train (not run)
+dags/          Airflow DAGs: trial_risk_daily, trial_risk_train, trial_risk_sample (not run)
 deploy/        docker/, helm/, kind/, tofu/, snowflake/, and the local-up / cloud-up scripts (not run)
 bi/            powerbi/ (PBIP project) and superset/ (dashboard bundle); neither opened in its tool
 data/sample/   committed snapshot: 3,015 studies, 60 openFDA drugs

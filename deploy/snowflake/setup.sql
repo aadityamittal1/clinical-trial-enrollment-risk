@@ -31,6 +31,9 @@ CREATE SCHEMA IF NOT EXISTS TRIAL_RISK.MARTS;
 CREATE ROLE IF NOT EXISTS TRIAL_RISK_ROLE;
 GRANT USAGE, OPERATE ON WAREHOUSE TRIAL_RISK_WH TO ROLE TRIAL_RISK_ROLE;
 GRANT USAGE ON DATABASE TRIAL_RISK TO ROLE TRIAL_RISK_ROLE;
+-- dbt and the loader run `create schema if not exists`, which needs this even
+-- when the schema already exists.
+GRANT CREATE SCHEMA ON DATABASE TRIAL_RISK TO ROLE TRIAL_RISK_ROLE;
 GRANT ALL PRIVILEGES ON SCHEMA TRIAL_RISK.RAW TO ROLE TRIAL_RISK_ROLE;
 GRANT ALL PRIVILEGES ON SCHEMA TRIAL_RISK.STAGING TO ROLE TRIAL_RISK_ROLE;
 GRANT ALL PRIVILEGES ON SCHEMA TRIAL_RISK.MARTS TO ROLE TRIAL_RISK_ROLE;
@@ -41,6 +44,15 @@ GRANT ALL ON FUTURE VIEWS IN SCHEMA TRIAL_RISK.STAGING TO ROLE TRIAL_RISK_ROLE;
 GRANT ALL ON FUTURE VIEWS IN SCHEMA TRIAL_RISK.MARTS TO ROLE TRIAL_RISK_ROLE;
 
 -- Service user (set its credentials separately; never in this file).
+--
+-- !!! WARNING: PASSWORD-ONLY SIGN-IN WILL PROBABLY BE REJECTED. !!!
+-- Snowflake is retiring single-factor password sign-in, and a new account is
+-- likely to refuse it for this user. The code (common/warehouse.py, the dbt
+-- `cloud` profile, Key Vault secret `snowflake-password`) only supports a
+-- password today. Key-pair authentication (RSA_PUBLIC_KEY on this user, a
+-- private key in Key Vault, and the matching connector / profile settings)
+-- will most likely be needed before the first cloud run and is NOT wired yet.
+-- Consider TYPE = SERVICE for this user once key-pair auth is in place.
 CREATE USER IF NOT EXISTS TRIAL_RISK_SVC
   DEFAULT_ROLE = TRIAL_RISK_ROLE
   DEFAULT_WAREHOUSE = TRIAL_RISK_WH

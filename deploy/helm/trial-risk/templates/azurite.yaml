@@ -1,4 +1,23 @@
 {{- if .Values.azurite.enabled }}
+{{- if .Values.azurite.persistence.enabled }}
+# Blob data on a PVC so an Azurite restart keeps MLflow artifacts (the MLflow
+# registry is on its own PVC and would otherwise point at lost artifacts).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.azurite.persistence.claimName }}
+  labels:
+    {{- include "trial-risk.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.azurite.persistence.storageClassName }}
+  storageClassName: {{ .Values.azurite.persistence.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.azurite.persistence.size }}
+---
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,6 +27,10 @@ metadata:
     {{- include "trial-risk.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  {{- if .Values.azurite.persistence.enabled }}
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: azurite
@@ -44,7 +67,12 @@ spec:
               mountPath: /data
       volumes:
         - name: data
+          {{- if .Values.azurite.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.azurite.persistence.claimName }}
+          {{- else }}
           emptyDir: {}
+          {{- end }}
 ---
 apiVersion: v1
 kind: Service

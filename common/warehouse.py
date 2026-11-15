@@ -106,6 +106,8 @@ class SnowflakeWarehouse:
             quote_identifiers=False,
             auto_create_table=True,
             overwrite=(mode == "replace"),
+            # Without it, naive datetime64 columns land as integers / wrong timestamps.
+            use_logical_type=True,
         )
 
     def close(self) -> None:

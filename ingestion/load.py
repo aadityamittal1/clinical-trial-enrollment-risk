@@ -12,7 +12,11 @@ per ``nct_id`` / drug, so duplicates are harmless.
 
 DuckDB path: read through ``Storage`` and insert. Snowflake path: ``COPY INTO`` from the
 external stage ``raw.landing_stage`` (static tier, not executed on the build machine); the
-committed sample is not in the stage, so it always goes through the insert path.
+committed sample is not in the stage, so it always goes through the insert path. On
+Snowflake the insert path writes the frame (JSON as text) to a staging table
+``raw._load_<table>`` and then inserts into the raw table with ``parse_json``, because
+``write_pandas`` would land the JSON text as a VARIANT *string* that every ``get_path`` in
+dbt reads as NULL (static tier as well: checked with a mocked warehouse only).
 """
 
 import json
@@ -81,13 +85,34 @@ def snowflake_copy_sql(source: str, key: str) -> str:
             "COPY INTO raw.ctgov_studies (nct_id, last_update_posted, loaded_at, study) FROM ("
             "SELECT $1:protocolSection.identificationModule.nctId::varchar, "
             "TRY_TO_DATE($1:protocolSection.statusModule.lastUpdatePostDateStruct.date::varchar), "
-            f"CURRENT_TIMESTAMP()::timestamp_ntz, $1 FROM {stage}) "
+            f"SYSDATE(), $1 FROM {stage}) "
             f"FILES = ({_lit(filename)}) FILE_FORMAT = (TYPE = JSON)"
         )
+    # SYSDATE() is the current UTC time as TIMESTAMP_NTZ (loaded_at is UTC everywhere).
     return (
         "COPY INTO raw.fda_event_counts (drug_name, loaded_at, payload) FROM ("
-        "SELECT $1:drug_name::varchar, CURRENT_TIMESTAMP()::timestamp_ntz, $1 "
+        "SELECT $1:drug_name::varchar, SYSDATE(), $1 "
         f"FROM {stage}) FILES = ({_lit(filename)}) FILE_FORMAT = (TYPE = JSON)"
+    )
+
+
+# Raw table -> (plain columns, JSON column) for the Snowflake staging-table insert.
+_SNOWFLAKE_INSERT_COLUMNS = {
+    "ctgov_studies": ("nct_id, last_update_posted, loaded_at", "study"),
+    "fda_event_counts": ("drug_name, loaded_at", "payload"),
+}
+
+
+def snowflake_staging_table(table: str) -> str:
+    return f"_load_{table}"
+
+
+def snowflake_insert_sql(table: str) -> str:
+    """Move one staged frame into ``raw.<table>``, parsing the JSON text into a VARIANT."""
+    cols, json_col = _SNOWFLAKE_INSERT_COLUMNS[table]
+    return (
+        f"insert into raw.{table} ({cols}, {json_col}) "
+        f"select {cols}, parse_json({json_col}) from raw.{snowflake_staging_table(table)}"
     )
 
 
@@ -139,14 +164,24 @@ def load_files(
                 records = list(read_jsonl_gz(storage, key))
                 now = datetime.now(UTC).replace(tzinfo=None, microsecond=0)
                 table = "ctgov_studies" if source == "ctgov" else "fda_event_counts"
+                frame = _frame(source, records, now)
+                if dialect == "snowflake":
+                    # Staging write first: write_pandas creates the table (DDL commits on
+                    # Snowflake), so it stays outside the insert + tracking transaction.
+                    wh.write_df(frame, "raw", snowflake_staging_table(table), mode="replace")
                 wh.execute("begin")
                 try:
-                    wh.write_df(_frame(source, records, now), "raw", table)
+                    if dialect == "snowflake":
+                        wh.execute(snowflake_insert_sql(table))
+                    else:
+                        wh.write_df(frame, "raw", table)
                     wh.execute(_track_sql(tracked, len(records)))
                 except BaseException:
                     wh.execute("rollback")
                     raise
                 wh.execute("commit")
+                if dialect == "snowflake":
+                    wh.execute(f"drop table if exists raw.{snowflake_staging_table(table)}")
                 n = len(records)
             files += 1
             rows += n

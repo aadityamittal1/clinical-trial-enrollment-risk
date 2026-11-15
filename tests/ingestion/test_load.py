@@ -2,6 +2,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytest
 
 from common.storage import FileStorage, write_jsonl_gz
@@ -101,6 +102,76 @@ def test_snowflake_copy_sql_shape() -> None:
     assert "@raw.landing_stage/ctgov/2026-11-14/" in sql
     assert "part-00000.jsonl.gz" in sql
     assert "raw.fda_event_counts" in load.snowflake_copy_sql("fda", "fda/2026-11-14/part-0.gz")
+    for source in ("ctgov", "fda"):
+        copy = load.snowflake_copy_sql(source, f"{source}/2026-11-14/part-0.jsonl.gz")
+        assert "SYSDATE()" in copy  # loaded_at in UTC
+        assert "CURRENT_TIMESTAMP" not in copy
+
+
+class RecordingWarehouse:
+    """Mocked Snowflake warehouse: records SQL and write_df calls, runs nothing."""
+
+    def __init__(self) -> None:
+        self.sql: list[str] = []
+        self.writes: list[tuple[str, str, str, list[str], list[Any]]] = []
+
+    def execute(self, sql: str, params: Any = None) -> None:
+        self.sql.append(sql)
+
+    def query_df(self, sql: str) -> pd.DataFrame:
+        self.sql.append(sql)
+        return pd.DataFrame({"file_key": pd.Series([], dtype=str)})
+
+    def write_df(self, df: pd.DataFrame, schema: str, table: str, mode: str = "append") -> None:
+        col = "study" if "study" in df.columns else "payload"
+        self.writes.append((schema, table, mode, list(df.columns), list(df[col])))
+
+    def close(self) -> None:
+        pass
+
+
+def test_snowflake_insert_path_parses_json(landing: FileStorage) -> None:
+    wh = RecordingWarehouse()
+    res = load.load_files(landing, wh, dialect="snowflake", source_label="sample")
+    assert res.files_loaded == 2 and res.rows_loaded == 3
+    # The frames go to staging tables (replace), never straight into the VARIANT tables.
+    staged = {(schema, table, mode) for schema, table, mode, _, _ in wh.writes}
+    assert staged == {
+        ("raw", "_load_ctgov_studies", "replace"),
+        ("raw", "_load_fda_event_counts", "replace"),
+    }
+    for _, _, _, _, json_values in wh.writes:
+        assert all(isinstance(v, str) for v in json_values)  # JSON text in a string column
+    inserts = [s for s in wh.sql if s.startswith("insert into raw.") and "_loaded_files" not in s]
+    assert len(inserts) == 2
+    ctgov = next(s for s in inserts if "raw.ctgov_studies" in s)
+    fda = next(s for s in inserts if "raw.fda_event_counts" in s)
+    assert "parse_json(study)" in ctgov and "from raw._load_ctgov_studies" in ctgov
+    assert "parse_json(payload)" in fda and "from raw._load_fda_event_counts" in fda
+    assert "drop table if exists raw._load_ctgov_studies" in wh.sql
+    assert "drop table if exists raw._load_fda_event_counts" in wh.sql
+    # Insert and tracking row share one transaction; the staging table is dropped after commit.
+    i = wh.sql.index(ctgov)
+    assert wh.sql[i - 1] == "begin"
+    assert wh.sql[i + 1].startswith("insert into raw._loaded_files")
+    assert wh.sql[i + 2] == "commit"
+    assert wh.sql[i + 3] == "drop table if exists raw._load_ctgov_studies"
+
+
+def test_duckdb_path_does_not_parse_json(landing: FileStorage, tmp_path: Path) -> None:
+    seen: list[str] = []
+
+    class Spy(DuckDBWarehouse):
+        def execute(self, sql: str, params: Any = None) -> None:
+            seen.append(sql)
+            super().execute(sql, params)
+
+    spy = Spy(tmp_path / "spy.duckdb")
+    load.load_files(landing, spy)
+    assert seen
+    assert not [s for s in seen if "parse_json" in s.lower() or "_load_" in s]
+    assert count(spy, "raw.ctgov_studies") == 2
+    spy.close()
 
 
 def test_committed_sample_matches_readme(tmp_path: Path) -> None:

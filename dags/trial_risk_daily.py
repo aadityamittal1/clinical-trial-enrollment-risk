@@ -1,4 +1,7 @@
-"""Daily trial-risk pipeline and the manually triggered training DAG.
+"""Daily trial-risk pipeline and the manually triggered training and sample-bootstrap DAGs.
+
+The daily DAG scores with the registered model but never trains one: run
+``trial_risk_sample`` (or ``trial_risk_train`` after a successful ``dbt_build``) first.
 
 STATIC TIER: written against Airflow with the cncf.kubernetes provider.
 Not executed by the authors; validated only by tests/dags/test_dag_static.py (ast).
@@ -45,9 +48,7 @@ if MODE == "local":
     VOLUMES = [
         k8s.V1Volume(
             name="warehouse",
-            persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
-                claim_name=DUCKDB_PVC
-            ),
+            persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name=DUCKDB_PVC),
         )
     ]
     VOLUME_MOUNTS = [k8s.V1VolumeMount(name="warehouse", mount_path=DUCKDB_MOUNT)]
@@ -91,6 +92,22 @@ with DAG(
     ingest_ctgov = _pod("ingest_ctgov", ["python", "-m", "ingestion", "ctgov"])
     ingest_fda = _pod("ingest_fda", ["python", "-m", "ingestion", "fda"])
     load_raw = _pod("load_raw", ["python", "-m", "ingestion", "load", "--source", "landing"])
+    # Fails the run (before dbt_build) when raw data is older than the error threshold
+    # in dbt/models/staging/_sources.yml.
+    source_freshness = _pod(
+        "source_freshness",
+        [
+            "dbt",
+            "source",
+            "freshness",
+            "--project-dir",
+            "dbt",
+            "--profiles-dir",
+            "dbt",
+            "--target",
+            DBT_TARGET,
+        ],
+    )
     dbt_build = _pod(
         "dbt_build",
         ["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt", "--target", DBT_TARGET],
@@ -98,11 +115,29 @@ with DAG(
     score = _pod("score", ["python", "-m", "ml", "score"])
     refresh_marts = _pod(
         "refresh_marts",
-        ["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt", "--target", DBT_TARGET,
-         "--select", "marts"],
+        [
+            "dbt",
+            "build",
+            "--project-dir",
+            "dbt",
+            "--profiles-dir",
+            "dbt",
+            "--target",
+            DBT_TARGET,
+            "--select",
+            "marts",
+        ],
     )
 
-    ingest_ctgov >> ingest_fda >> load_raw >> dbt_build >> score >> refresh_marts
+    (
+        ingest_ctgov
+        >> ingest_fda
+        >> load_raw
+        >> source_freshness
+        >> dbt_build
+        >> score
+        >> refresh_marts
+    )
 
 with DAG(
     dag_id="trial_risk_train",
@@ -114,3 +149,19 @@ with DAG(
     tags=["trial-risk"],
 ) as train_dag:
     train = _pod("train", ["python", "-m", "ml", "train"])
+
+# Bootstrap: the daily DAG scores with the registered model but never trains one.
+# Trigger this once after `make local-up` to load the committed sample, build dbt,
+# train/register a model and score, all in one pod.
+with DAG(
+    dag_id="trial_risk_sample",
+    description="Manually triggered: whole pipeline on the committed sample (bootstrap)",
+    schedule=None,
+    start_date=datetime(2026, 11, 1),
+    catchup=False,
+    default_args=DEFAULT_ARGS,
+    tags=["trial-risk"],
+) as sample_dag:
+    pipeline_sample = _pod(
+        "pipeline_sample", ["python", "-m", "pipeline", "run", "--source", "sample"]
+    )

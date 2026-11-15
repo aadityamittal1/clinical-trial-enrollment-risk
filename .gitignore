@@ -14,3 +14,14 @@ dbt/target/
 dbt/logs/
 dbt/dbt_packages/
 .env
+.env.*
+!.env.example
+logs/
+
+# OpenTofu state, plans and variables (state holds secrets in plaintext)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log

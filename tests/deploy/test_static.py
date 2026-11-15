@@ -23,11 +23,7 @@ def _files(suffixes: set[str] | None = None) -> list[Path]:
 
 
 def _plain_yaml_files() -> list[Path]:
-    return [
-        p
-        for p in _files({".yaml", ".yml"})
-        if "templates" not in p.relative_to(DEPLOY).parts
-    ]
+    return [p for p in _files({".yaml", ".yml"}) if "templates" not in p.relative_to(DEPLOY).parts]
 
 
 def test_yaml_outside_templates_parses() -> None:
@@ -72,7 +68,9 @@ def test_templates_reference_only_defined_values() -> None:
         for match in pattern.finditer(tpl.read_text(encoding="utf-8")):
             path = match.group(1).lstrip(".").split(".")
             seen += 1
-            assert _has_path(values, path), f"{tpl.name}: .Values.{'.'.join(path)} not in values.yaml"
+            assert _has_path(values, path), (
+                f"{tpl.name}: .Values.{'.'.join(path)} not in values.yaml"
+            )
     assert seen > 20
 
 
@@ -93,14 +91,25 @@ def test_required_names_and_modes() -> None:
     assert local["config"]["MODE"] == "local"
     assert local["config"]["STORAGE_BACKEND"] == "azure"
     assert local["azurite"]["enabled"] is True
+    assert local["azurite"]["persistence"]["enabled"] is True
+    assert base["azurite"]["persistence"]["enabled"] is False
     assert local["duckdb"]["persistence"]["enabled"] is True
     assert aks["config"]["MODE"] == "cloud"
     assert aks["keyVault"]["enabled"] is True
     assert aks["azurite"]["enabled"] is False
     expected_env = {
-        "MODE", "STORAGE_BACKEND", "LANDING_DIR", "LANDING_CONTAINER", "DUCKDB_PATH",
-        "MLFLOW_TRACKING_URI", "MODEL_NAME", "SNOWFLAKE_ACCOUNT", "SNOWFLAKE_USER",
-        "SNOWFLAKE_ROLE", "SNOWFLAKE_WAREHOUSE", "SNOWFLAKE_DATABASE",
+        "MODE",
+        "STORAGE_BACKEND",
+        "LANDING_DIR",
+        "LANDING_CONTAINER",
+        "DUCKDB_PATH",
+        "MLFLOW_TRACKING_URI",
+        "MODEL_NAME",
+        "SNOWFLAKE_ACCOUNT",
+        "SNOWFLAKE_USER",
+        "SNOWFLAKE_ROLE",
+        "SNOWFLAKE_WAREHOUSE",
+        "SNOWFLAKE_DATABASE",
     }
     assert expected_env <= set(base["config"])
 
@@ -116,7 +125,13 @@ def test_airflow_values_choose_baked_dags() -> None:
 def test_shell_scripts_strict_and_lf() -> None:
     scripts = _files({".sh"})
     names = {p.name for p in scripts}
-    assert {"local-up.sh", "local-down.sh", "cloud-up.sh", "cloud-down.sh", "entrypoint.sh"} <= names
+    assert {
+        "local-up.sh",
+        "local-down.sh",
+        "cloud-up.sh",
+        "cloud-down.sh",
+        "entrypoint.sh",
+    } <= names
     for p in scripts:
         raw = p.read_bytes()
         assert b"\r\n" not in raw, f"{p} has CRLF line endings"
@@ -202,10 +217,38 @@ def test_dockerfiles() -> None:
     assert "!deploy/docker" in ignore
 
 
+def test_azurite_data_on_pvc_when_enabled() -> None:
+    tpl = (CHART / "templates" / "azurite.yaml").read_text(encoding="utf-8")
+    assert "{{- if .Values.azurite.persistence.enabled }}" in tpl
+    assert "kind: PersistentVolumeClaim" in tpl
+    assert "claimName: {{ .Values.azurite.persistence.claimName }}" in tpl
+    assert "emptyDir: {}" in tpl  # still the default when persistence is off
+    assert "{{- else }}" in tpl
+
+
+def test_uv_pin_identical_in_dockerfiles() -> None:
+    pins = {}
+    for name in ("pipeline", "serving"):
+        text = (DEPLOY / "docker" / f"{name}.Dockerfile").read_text(encoding="utf-8")
+        found = re.findall(r"COPY --from=ghcr\.io/astral-sh/uv:([0-9][0-9.]*) /uv ", text)
+        assert len(found) == 1, f"{name}: expected one pinned uv image, got {found}"
+        pins[name] = found[0]
+    assert pins["pipeline"] == pins["serving"], pins
+
+
 def test_probes_on_health() -> None:
     serving = (CHART / "templates" / "serving.yaml").read_text(encoding="utf-8")
-    assert serving.count("path: /health") == 2
-    assert "readinessProbe" in serving and "livenessProbe" in serving
+    # Readiness on /health; liveness only on the TCP port (a slow MLflow must not kill the pod).
+    assert serving.count("path: /health") == 1
+    ready = serving.index("readinessProbe:")
+    live = serving.index("livenessProbe:")
+    assert "path: /health" in serving[ready:live]
+    assert "tcpSocket:" in serving[live : live + 80]
+    assert "MLFLOW_HTTP_REQUEST_MAX_RETRIES" in serving
+    assert "MLFLOW_HTTP_REQUEST_TIMEOUT" in serving
+    base = yaml.safe_load((CHART / "values.yaml").read_text(encoding="utf-8"))
+    assert int(base["serving"]["mlflowHttp"]["maxRetries"]) <= 2
+    assert int(base["serving"]["mlflowHttp"]["timeoutSeconds"]) <= 15
 
 
 # --------------------------------------------------------------- secret scan
@@ -254,7 +297,7 @@ def test_secret_scanner_catches_known_shapes() -> None:
     leaked = [
         "SNOWFLAKE_PASSWORD: hunter2hunter2",
         "OPENFDA_API_KEY=abcd1234efgh",
-        "  password = \"S3cretValue99\"",
+        '  password = "S3cretValue99"',
         "# token: ghp_" + "a" * 36,
         "--from-literal=SNOWFLAKE_PASSWORD=plaintext123",
         "DefaultEndpointsProtocol=http;AccountName=x;AccountKey=" + "A" * 40 + "==;",
@@ -283,12 +326,19 @@ def test_secret_scanner_allows_placeholders() -> None:
 
 def test_airflow_env_contract_exact() -> None:
     expected = {
-        "TRIAL_RISK_MODE", "TRIAL_RISK_NAMESPACE", "TRIAL_RISK_IMAGE",
-        "TRIAL_RISK_IMAGE_PULL_POLICY", "TRIAL_RISK_CONFIGMAP", "TRIAL_RISK_SECRET",
-        "TRIAL_RISK_DUCKDB_PVC", "TRIAL_RISK_DUCKDB_MOUNT",
+        "TRIAL_RISK_MODE",
+        "TRIAL_RISK_NAMESPACE",
+        "TRIAL_RISK_IMAGE",
+        "TRIAL_RISK_IMAGE_PULL_POLICY",
+        "TRIAL_RISK_CONFIGMAP",
+        "TRIAL_RISK_SECRET",
+        "TRIAL_RISK_DUCKDB_PVC",
+        "TRIAL_RISK_DUCKDB_MOUNT",
     }
-    modes = {"airflow-values-local.yaml": ("local", "IfNotPresent"),
-             "airflow-values-aks.yaml": ("cloud", "Always")}
+    modes = {
+        "airflow-values-local.yaml": ("local", "IfNotPresent"),
+        "airflow-values-aks.yaml": ("cloud", "Always"),
+    }
     for name, (mode, pull) in modes.items():
         v = yaml.safe_load((DEPLOY / "helm" / name).read_text(encoding="utf-8"))
         env = {e["name"]: e["value"] for e in v["env"]}
@@ -301,6 +351,12 @@ def test_airflow_env_contract_exact() -> None:
     up = (DEPLOY / "cloud-up.sh").read_text(encoding="utf-8")
     assert "env[" not in up, "cloud-up.sh must not use positional env --set"
     assert "TRIAL_RISK_MODE" in up
+
+
+def test_cloud_up_requires_snowflake_identity() -> None:
+    up = (DEPLOY / "cloud-up.sh").read_text(encoding="utf-8")
+    assert "${SNOWFLAKE_ACCOUNT:?" in up and "${SNOWFLAKE_USER:?" in up
+    assert "SNOWFLAKE_ACCOUNT:-" not in up and "SNOWFLAKE_USER:-" not in up
 
 
 def test_serving_nodeport_local() -> None:
@@ -328,11 +384,19 @@ def test_local_up_is_rerunnable() -> None:
     assert "get secret trial-risk-secrets" in up
     assert "rollout restart" in up
     assert "kind load docker-image" in up
+    # Airflow restarts: each component separately, Deployment or StatefulSet, no blanket || true.
+    assert "for kind in deployment statefulset" in up
+    assert "restart_airflow airflow-scheduler" in up
+    assert "restart_airflow airflow-webserver" in up
+    for line in up.splitlines():
+        if "rollout restart" in line:
+            assert "|| true" not in line, line
 
 
 def test_snowflake_role_reachable() -> None:
     sql = (DEPLOY / "snowflake" / "setup.sql").read_text(encoding="utf-8")
     assert "GRANT ROLE TRIAL_RISK_ROLE TO ROLE SYSADMIN" in sql
+    assert "GRANT CREATE SCHEMA ON DATABASE TRIAL_RISK TO ROLE TRIAL_RISK_ROLE;" in sql
 
 
 def test_no_terraform_state_or_tfvars_committed() -> None:
