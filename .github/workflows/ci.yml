@@ -146,3 +146,12 @@ jobs:
         run: |
           kubectl get pods -n trial-risk -o wide || true
           kubectl -n trial-risk logs job/pipeline-sample --all-containers || true
+          kubectl -n trial-risk get events --sort-by=.lastTimestamp | tail -n 60 || true
+          kubectl -n trial-risk describe deployment trial-risk-mlflow trial-risk-serving || true
+          kubectl -n trial-risk describe pods -l 'app.kubernetes.io/name in (mlflow,serving)' || true
+          for app in mlflow serving; do
+            echo "---- ${app} logs (current) ----"
+            kubectl -n trial-risk logs -l "app.kubernetes.io/name=${app}" --all-containers --tail=100 || true
+            echo "---- ${app} logs (previous) ----"
+            kubectl -n trial-risk logs -l "app.kubernetes.io/name=${app}" --all-containers --tail=100 --previous || true
+          done

@@ -62,12 +62,13 @@ spec:
               except Exception as exc:
                   print('create_container:', exc)
               "
-              exec mlflow server --host 0.0.0.0 --port {{ .Values.mlflow.port }} --backend-store-uri sqlite:////mlflow/mlflow.db --artifacts-destination {{ .Values.mlflow.artifactRoot }} --serve-artifacts
+              exec mlflow server --host 0.0.0.0 --port {{ .Values.mlflow.port }} --workers {{ .Values.mlflow.workers | default 1 }} --backend-store-uri sqlite:////mlflow/mlflow.db --artifacts-destination {{ .Values.mlflow.artifactRoot }} --serve-artifacts
           {{- else }}
           command: ["mlflow", "server"]
           args:
             - --host=0.0.0.0
             - --port={{ .Values.mlflow.port }}
+            - --workers={{ .Values.mlflow.workers | default 1 }}
             - --backend-store-uri=sqlite:////mlflow/mlflow.db
             - --artifacts-destination={{ .Values.mlflow.artifactRoot }}
             - --serve-artifacts
@@ -75,6 +76,9 @@ spec:
           env:
             - name: MLFLOW_SERVER_ALLOWED_HOSTS
               value: "*"
+            # Stops the GenAI job runner and its consumer processes: unused here and over the memory limit.
+            - name: MLFLOW_SERVER_ENABLE_JOB_EXECUTION
+              value: "false"
           envFrom:
             {{- include "trial-risk.envFrom" . | nindent 12 }}
           ports:

@@ -63,6 +63,8 @@ mlflow:
   port: 5000
   artifactRoot: wasbs://mlflow@ACCOUNT.blob.core.windows.net/
   ensureContainer: false
+  # One uvicorn worker: MLflow's default of 4 overflows the 1Gi limit; SQLite gains nothing more.
+  workers: 1
   storage:
     size: 1Gi
     storageClassName: ""

@@ -251,6 +251,27 @@ def test_probes_on_health() -> None:
     assert int(base["serving"]["mlflowHttp"]["timeoutSeconds"]) <= 15
 
 
+def test_mlflow_server_fits_memory_limit() -> None:
+    # In the 1Gi limit (OOMKilled on kind): one uvicorn worker instead of MLflow's default of 4,
+    # and no GenAI job runner (MLFLOW_SERVER_ENABLE_JOB_EXECUTION starts consumer processes).
+    base = yaml.safe_load((CHART / "values.yaml").read_text(encoding="utf-8"))
+    assert base["mlflow"]["workers"] == 1
+    tpl = (CHART / "templates" / "mlflow.yaml").read_text(encoding="utf-8")
+    lines = [ln.strip() for ln in tpl.splitlines()]
+    shell = [ln for ln in lines if "exec mlflow server" in ln]
+    assert len(shell) == 1, shell
+    assert shell[0].startswith("exec mlflow server "), shell[0]
+    assert "--workers {{ .Values.mlflow.workers | default 1 }}" in shell[0]
+    else_branch = tpl.split("{{- else }}", 1)[1].split("{{- end }}", 1)[0]
+    else_lines = [ln.strip() for ln in else_branch.splitlines()]
+    assert 'command: ["mlflow", "server"]' in else_lines
+    assert "- --workers={{ .Values.mlflow.workers | default 1 }}" in else_lines
+    assert tpl.count(".Values.mlflow.workers") == 2
+    name = "- name: MLFLOW_SERVER_ENABLE_JOB_EXECUTION"
+    assert name in lines, "mlflow.yaml must disable the MLflow job runner"
+    assert lines[lines.index(name) + 1] == 'value: "false"'
+
+
 # --------------------------------------------------------------- secret scan
 
 # A value counts as a placeholder (allowed) when it is empty, "" / '' or starts
