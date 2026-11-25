@@ -1,0 +1,281 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "ca9fe581ed48589b9361",
+  "position": {
+    "x": 20,
+    "y": 130,
+    "z": 0,
+    "height": 570,
+    "width": 780,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "nct_id"
+                }
+              },
+              "queryRef": "dim_study.nct_id",
+              "nativeQueryRef": "nct_id"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "brief_title"
+                }
+              },
+              "queryRef": "dim_study.brief_title",
+              "nativeQueryRef": "brief_title"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "phase"
+                }
+              },
+              "queryRef": "dim_study.phase",
+              "nativeQueryRef": "phase"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "lead_sponsor_class"
+                }
+              },
+              "queryRef": "dim_study.lead_sponsor_class",
+              "nativeQueryRef": "lead_sponsor_class"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "risk_score"
+                }
+              },
+              "queryRef": "ml_scores_latest.risk_score",
+              "nativeQueryRef": "risk_score"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_1"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_1",
+              "nativeQueryRef": "top_driver_1"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_2"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_2",
+              "nativeQueryRef": "top_driver_2"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "top_driver_3"
+                }
+              },
+              "queryRef": "ml_scores_latest.top_driver_3",
+              "nativeQueryRef": "top_driver_3"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "ml_scores_latest"
+                  }
+                },
+                "Property": "risk_score"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Open trials ranked by risk (right-click a row > Drill through > Trial detail)'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "3f3d9ac61dd2510dad83",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "dim_study"
+              }
+            },
+            "Property": "is_open"
+          }
+        },
+        "type": "Categorical",
+        "filter": {
+          "Version": 2,
+          "From": [
+            {
+              "Name": "d",
+              "Entity": "dim_study",
+              "Type": 0
+            }
+          ],
+          "Where": [
+            {
+              "Condition": {
+                "In": {
+                  "Expressions": [
+                    {
+                      "Column": {
+                        "Expression": {
+                          "SourceRef": {
+                            "Source": "d"
+                          }
+                        },
+                        "Property": "is_open"
+                      }
+                    }
+                  ],
+                  "Values": [
+                    [
+                      {
+                        "Literal": {
+                          "Value": "true"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "4e94efc90d665a75a381",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "ml_scores_latest"
+              }
+            },
+            "Property": "risk_score"
+          }
+        },
+        "type": "Advanced",
+        "filter": {
+          "Version": 2,
+          "From": [
+            {
+              "Name": "d",
+              "Entity": "ml_scores_latest",
+              "Type": 0
+            }
+          ],
+          "Where": [
+            {
+              "Condition": {
+                "Comparison": {
+                  "ComparisonKind": 2,
+                  "Left": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Source": "d"
+                        }
+                      },
+                      "Property": "risk_score"
+                    }
+                  },
+                  "Right": {
+                    "Literal": {
+                      "Value": "0D"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

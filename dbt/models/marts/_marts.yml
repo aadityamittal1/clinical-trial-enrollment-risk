@@ -1,0 +1,445 @@
+version: 2
+
+# Column contract for ML (ml_features, fct_trial_outcomes), serving (dim_study,
+# ml_features, ml_scores_latest) and BI (all marts). Every column of every mart is listed
+# here; tests/dbt/test_dbt_build.py checks that this file and the built tables agree.
+
+models:
+  - name: dim_study
+    description: One row per study; descriptive attributes for BI and the scoring API.
+    columns:
+      - name: nct_id
+        description: NCT identifier (PK).
+        data_tests: [unique, not_null]
+      - name: brief_title
+        description: Brief title.
+      - name: phase
+        description: Phases joined with '/', 'NA' when absent.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: &phase_values
+                  - NA
+                  - EARLY_PHASE1
+                  - PHASE1
+                  - PHASE2
+                  - PHASE3
+                  - PHASE4
+                  - PHASE1/PHASE2
+                  - PHASE2/PHASE3
+      - name: overall_status
+        description: ClinicalTrials.gov overall status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: &overall_status_values
+                  - ACTIVE_NOT_RECRUITING
+                  - COMPLETED
+                  - ENROLLING_BY_INVITATION
+                  - NOT_YET_RECRUITING
+                  - RECRUITING
+                  - SUSPENDED
+                  - TERMINATED
+                  - WITHDRAWN
+                  - AVAILABLE
+                  - NO_LONGER_AVAILABLE
+                  - TEMPORARILY_NOT_AVAILABLE
+                  - APPROVED_FOR_MARKETING
+                  - WITHHELD
+                  - UNKNOWN
+      - name: is_open
+        description: TRUE when overall_status is RECRUITING or NOT_YET_RECRUITING (scored studies).
+        data_tests: [not_null]
+      - name: sponsor_key
+        description: FK to dim_sponsor (md5 of the lead sponsor name).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_sponsor')
+                field: sponsor_key
+      - name: lead_sponsor_class
+        description: Lead sponsor agency class as given on this study.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: &sponsor_class_values
+                  - NIH
+                  - FED
+                  - OTHER_GOV
+                  - INDIV
+                  - INDUSTRY
+                  - NETWORK
+                  - AMBIG
+                  - OTHER
+                  - UNKNOWN
+      - name: start_date
+        description: Start date (ACTUAL or ESTIMATED; 'YYYY-MM' -> first of the month).
+      - name: start_year
+        description: Year of start_date.
+      - name: completion_date
+        description: Completion date (ACTUAL or ESTIMATED). Not a model feature.
+      - name: enrollment_count
+        description: Enrollment count (planned while open, actual once closed). Not a model feature.
+      - name: enrollment_type
+        description: ACTUAL or ESTIMATED.
+      - name: ctgov_url
+        description: https://clinicaltrials.gov/study/<nct_id>.
+        data_tests: [not_null]
+
+  - name: dim_sponsor
+    description: One row per sponsor name (lead sponsors and collaborators).
+    columns:
+      - name: sponsor_key
+        description: md5 of the sponsor name (PK).
+        data_tests: [unique, not_null]
+      - name: sponsor_name
+        description: Sponsor name.
+        data_tests: [unique, not_null]
+      - name: sponsor_class
+        description: >
+          Most frequent known agency class for the name (lead-sponsor classes preferred,
+          ties alphabetical); UNKNOWN only when no other class was ever given.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: *sponsor_class_values
+
+  - name: dim_condition
+    description: One row per condition name (case-insensitive) from conditionsModule.conditions.
+    columns:
+      - name: condition_key
+        description: md5 of the lowercased condition name (PK).
+        data_tests: [unique, not_null]
+      - name: condition_name
+        description: Most frequent spelling of the condition.
+        data_tests: [not_null]
+      - name: condition_category
+        description: >
+          Most common known study-level category among studies listing the condition
+          (ties: category priority, then name); 'Unknown' when none is known.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: &condition_category_values
+                  - Neoplasms
+                  - Infections
+                  - Mental Disorders
+                  - Cardiovascular Diseases
+                  - Nervous System Diseases
+                  - Respiratory Tract Diseases
+                  - Digestive System Diseases
+                  - Endocrine System Diseases
+                  - Nutritional and Metabolic Diseases
+                  - Musculoskeletal Diseases
+                  - Eye Diseases
+                  - Ear, Nose, Throat and Mouth Diseases
+                  - Urogenital Diseases and Pregnancy Complications
+                  - Skin and Connective Tissue Diseases
+                  - Hemic and Lymphatic Diseases
+                  - Immune System Diseases
+                  - Congenital, Hereditary and Neonatal Diseases
+                  - Injuries and Environmental Disorders
+                  - Behavior and Behavioral Mechanisms
+                  - Pathological Conditions, Signs and Symptoms
+                  - Unknown
+
+  - name: dim_drug
+    description: >
+      One row per canonical drug name (DRUG / BIOLOGICAL interventions). Non-drug names
+      such as saline or blood sample are kept: name matching is a documented risk. The BI
+      match rate is the share of rows with has_fda_data.
+    columns:
+      - name: drug_key
+        description: md5 of canonical_name (PK).
+        data_tests: [unique, not_null]
+      - name: canonical_name
+        description: Canonical drug name (join key to openFDA).
+        data_tests: [unique, not_null]
+      - name: n_studies
+        description: Number of studies with this drug.
+        data_tests: [not_null]
+      - name: has_fda_data
+        description: TRUE when the latest openFDA response for this name has at least one reaction.
+        data_tests: [not_null]
+
+  - name: bridge_study_condition
+    description: Study x condition bridge.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [nct_id, condition_key]
+    columns:
+      - name: nct_id
+        description: FK to dim_study.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_study')
+                field: nct_id
+      - name: condition_key
+        description: FK to dim_condition.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_condition')
+                field: condition_key
+
+  - name: bridge_study_drug
+    description: Study x drug bridge.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [nct_id, drug_key]
+    columns:
+      - name: nct_id
+        description: FK to dim_study.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_study')
+                field: nct_id
+      - name: drug_key
+        description: FK to dim_drug.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_drug')
+                field: drug_key
+
+  - name: fct_study_sites
+    description: One row per study x site (current site list), for the maps.
+    columns:
+      - name: site_key
+        description: md5 of nct_id and the site's position in the locations array (PK).
+        data_tests: [unique, not_null]
+      - name: nct_id
+        description: FK to dim_study.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_study')
+                field: nct_id
+      - name: country
+        description: Country.
+      - name: state
+        description: State / region.
+      - name: city
+        description: City.
+      - name: latitude
+        description: Latitude (geoPoint.lat).
+      - name: longitude
+        description: Longitude (geoPoint.lon).
+
+  - name: fct_trial_outcomes
+    description: >
+      One row per interventional study with status COMPLETED, TERMINATED or WITHDRAWN:
+      the model label. The low-enrollment rule is macros/low_enrollment.sql
+      (shortfall OR (stem AND NOT exclusion)).
+    columns:
+      - name: nct_id
+        description: Study (PK, FK to dim_study).
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_study')
+                field: nct_id
+      - name: overall_status
+        description: COMPLETED, TERMINATED or WITHDRAWN.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [COMPLETED, TERMINATED, WITHDRAWN]
+      - name: why_stopped
+        description: Free-text reason (TERMINATED / WITHDRAWN).
+      - name: outcome_class
+        description: completed | terminated_low_enrollment | terminated_other | withdrawn.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [completed, terminated_low_enrollment, terminated_other, withdrawn]
+      - name: label
+        description: 1 = terminated_low_enrollment, 0 = completed, NULL otherwise.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: enrollment_count
+        description: Enrollment count (actual for closed studies).
+      - name: enrollment_type
+        description: ACTUAL or ESTIMATED.
+
+  - name: ml_features
+    description: >
+      One row per study, registration-time features only. Leakage rules: nothing derived
+      from enrollment count, completion dates, last-update date, results flags,
+      why_stopped or status. Known soft leaks: every feature is read from the latest record
+      version, not the version at registration. The site list (n_sites / n_countries /
+      us_only) drifts the most, and arms, interventions, conditions, eligibility criteria
+      and the age range can also have been edited after registration.
+    columns:
+      - name: nct_id
+        description: Study (PK, FK to dim_study).
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_study')
+                field: nct_id
+      - name: phase
+        description: Phases joined with '/', 'NA' when absent.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: *phase_values
+      - name: allocation
+        description: RANDOMIZED, NON_RANDOMIZED or NA.
+      - name: masking
+        description: NONE, SINGLE, DOUBLE, TRIPLE, QUADRUPLE.
+      - name: primary_purpose
+        description: Primary purpose.
+      - name: n_arms
+        description: Number of arm groups (NULL when not reported; latest version, soft leak).
+      - name: has_drug
+        description: Any DRUG intervention.
+        data_tests: [not_null]
+      - name: has_biological
+        description: Any BIOLOGICAL intervention.
+        data_tests: [not_null]
+      - name: has_device
+        description: Any DEVICE intervention.
+        data_tests: [not_null]
+      - name: has_procedure
+        description: Any PROCEDURE intervention.
+        data_tests: [not_null]
+      - name: has_behavioral
+        description: Any BEHAVIORAL intervention.
+        data_tests: [not_null]
+      - name: has_other_intervention
+        description: >
+          Any intervention of another non-NULL type (OTHER, DIETARY_SUPPLEMENT, RADIATION,
+          DIAGNOSTIC_TEST, GENETIC, COMBINATION_PRODUCT, ...). Latest version, soft leak.
+        data_tests: [not_null]
+      - name: sponsor_class
+        description: Lead sponsor agency class.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: *sponsor_class_values
+      - name: n_collaborators
+        description: Number of collaborators.
+        data_tests: [not_null]
+      - name: has_dmc
+        description: Data monitoring committee in place (NULL when not reported).
+      - name: min_age_years
+        description: Minimum age in years (NULL when not given; latest version, soft leak).
+      - name: max_age_years
+        description: Maximum age in years (NULL = no upper limit; latest version, soft leak).
+      - name: sex
+        description: ALL, FEMALE or MALE.
+      - name: healthy_volunteers
+        description: Healthy volunteers accepted.
+      - name: n_inclusion_criteria
+        description: >
+          Items in the inclusion section (list items; for paragraph-style text, non-blank
+          lines minus the header). Latest version, soft leak.
+      - name: n_exclusion_criteria
+        description: Items in the exclusion section (same rule; 0 when there is no exclusion section; soft leak).
+      - name: criteria_text_length
+        description: Length of the eligibility criteria text in characters (latest version, soft leak).
+      - name: n_sites
+        description: Number of listed sites (current list; soft leak).
+        data_tests: [not_null]
+      - name: n_countries
+        description: Number of distinct site countries (current list; soft leak).
+        data_tests: [not_null]
+      - name: us_only
+        description: All sites in the United States (NULL when no sites are listed; soft leak).
+      - name: condition_category
+        description: Top-level condition category from the MeSH browse data, 'Unknown' otherwise (latest version, soft leak).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: *condition_category_values
+      - name: n_conditions
+        description: Number of distinct listed conditions (latest version, soft leak).
+        data_tests: [not_null]
+      - name: start_year
+        description: Year of start_date (ACTUAL or ESTIMATED).
+
+  - name: fct_drug_safety
+    description: Top 25 openFDA reactions per drug (latest load). PK drug_key + reaction.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [drug_key, reaction]
+    columns:
+      - name: drug_key
+        description: FK to dim_drug.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_drug')
+                field: drug_key
+      - name: reaction
+        description: MedDRA preferred term.
+        data_tests: [not_null]
+      - name: report_count
+        description: Number of adverse-event reports with this reaction.
+      - name: reaction_rank
+        description: 1 = most reported (ties alphabetical); at most 25.
+        data_tests: [not_null]
+
+  - name: ml_scores_latest
+    description: >
+      Latest score per study from marts.ml_scores (written by python -m ml score).
+      Empty until the first scoring run.
+    columns:
+      - name: nct_id
+        description: Scored study (PK).
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_study')
+                field: nct_id
+              config:
+                severity: warn
+      - name: risk_score
+        description: Predicted probability of termination for low enrollment.
+      - name: model_version
+        description: Model version that produced the score.
+      - name: scored_at
+        description: Scoring timestamp (UTC).
+      - name: top_driver_1
+        description: Feature with the largest absolute SHAP value.
+      - name: top_driver_2
+        description: Second-largest SHAP driver.
+      - name: top_driver_3
+        description: Third-largest SHAP driver.
+      - name: top_driver_1_shap
+        description: SHAP value of top_driver_1.
+      - name: top_driver_2_shap
+        description: SHAP value of top_driver_2.
+      - name: top_driver_3_shap
+        description: SHAP value of top_driver_3.
+      - name: shap_values
+        description: All SHAP values as a JSON string.

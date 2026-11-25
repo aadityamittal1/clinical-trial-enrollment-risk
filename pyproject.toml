@@ -1,0 +1,62 @@
+[project]
+name = "trial-risk"
+version = "0.1.0"
+description = "Clinical trial enrollment-risk data platform"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+dependencies = [
+    "httpx",
+    "tenacity",
+    "azure-storage-blob",
+    "duckdb",
+    "pandas",
+    "pyarrow",
+    "dbt-core",
+    "dbt-duckdb",
+    "scikit-learn",
+    "lightgbm",
+    "shap",
+    "mlflow",
+    "matplotlib",
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "pydantic-settings",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+cloud = ["snowflake-connector-python", "dbt-snowflake"]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy", "respx", "pandas-stubs", "types-PyYAML"]
+
+[tool.setuptools]
+packages = ["common", "ingestion", "ml", "serving", "pipeline"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["dbt/target", "dbt/dbt_packages"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+exclude = ["^dbt/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --import-mode=importlib"
+filterwarnings = ["error"]

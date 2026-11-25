@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "b694ea2969f05254a3be",
+  "position": {
+    "x": 240,
+    "y": 20,
+    "z": 0,
+    "height": 90,
+    "width": 200,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "Mean Risk Score"
+                }
+              },
+              "queryRef": "ml_scores_latest.Mean Risk Score",
+              "nativeQueryRef": "Mean Risk Score"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

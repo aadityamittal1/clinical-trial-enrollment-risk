@@ -1,0 +1,19 @@
+slice_name: Trials in portfolio
+description: null
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  datasource: 1__table
+  viz_type: big_number_total
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  metric: trial_count
+  adhoc_filters: []
+  subheader: studies
+query_context: null
+cache_timeout: null
+uuid: 189ac513-6f99-553a-ba0e-227660d3cc83
+version: 1.0.0
+dataset_uuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb

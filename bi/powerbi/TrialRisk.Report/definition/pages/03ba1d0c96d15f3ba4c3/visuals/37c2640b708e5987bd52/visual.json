@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "37c2640b708e5987bd52",
+  "position": {
+    "x": 520,
+    "y": 20,
+    "z": 0,
+    "height": 90,
+    "width": 740,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_drug"
+                    }
+                  },
+                  "Property": "canonical_name"
+                }
+              },
+              "queryRef": "dim_drug.canonical_name",
+              "nativeQueryRef": "canonical_name"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

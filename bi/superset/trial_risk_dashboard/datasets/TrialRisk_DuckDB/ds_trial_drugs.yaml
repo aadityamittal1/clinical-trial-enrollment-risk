@@ -1,0 +1,124 @@
+table_name: ds_trial_drugs
+main_dttm_col: null
+description: null
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: marts
+sql: "SELECT\n  s.nct_id, s.brief_title, s.is_open, s.overall_status, s.ctgov_url,\n  '<a href=\"' || s.ctgov_url || '\" target=\"\
+  _blank\">' || s.nct_id || '</a>' AS ctgov_link,\n  d.canonical_name, d.has_fda_data\nFROM marts.bridge_study_drug b\nJOIN\
+  \ marts.dim_study s ON s.nct_id = b.nct_id\nJOIN marts.dim_drug d ON d.drug_key = b.drug_key"
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: {}
+uuid: af40a540-b8a7-5573-8d64-3195e300ae0a
+metrics:
+- metric_name: trial_count
+  verbose_name: Trials
+  metric_type: null
+  expression: COUNT(DISTINCT nct_id)
+  description: null
+  d3format: null
+  extra: {}
+  warning_text: null
+columns:
+- column_name: nct_id
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: brief_title
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: is_open
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: BOOLEAN
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: overall_status
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: ctgov_url
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: ctgov_link
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: canonical_name
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: VARCHAR
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+- column_name: has_fda_data
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: BOOLEAN
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+version: 1.0.0
+database_uuid: 0263bb34-8541-524d-8a8a-b12576446937

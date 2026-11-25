@@ -1,0 +1,33 @@
+slice_name: Trials testing each drug (ClinicalTrials.gov link)
+description: null
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  datasource: 15__table
+  viz_type: table
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  query_mode: raw
+  all_columns:
+  - canonical_name
+  - ctgov_link
+  - brief_title
+  - overall_status
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: is_open
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+  order_by_cols:
+  - '["canonical_name", true]'
+  allow_render_html: true
+  include_search: true
+query_context: null
+cache_timeout: null
+uuid: 3a25b70c-b2d7-5024-a7e4-dcf17049c5a3
+version: 1.0.0
+dataset_uuid: af40a540-b8a7-5573-8d64-3195e300ae0a

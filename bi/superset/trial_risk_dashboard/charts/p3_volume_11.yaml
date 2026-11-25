@@ -1,0 +1,19 @@
+slice_name: Reports across top reactions
+description: null
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  datasource: 11__table
+  viz_type: big_number_total
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  metric: report_volume
+  adhoc_filters: []
+  subheader: sum of report_count over each drug's listed reactions (not total reports)
+query_context: null
+cache_timeout: null
+uuid: 5118d025-c0de-54b6-be34-e5aa2e732414
+version: 1.0.0
+dataset_uuid: 5edfab21-50aa-5784-81fd-72d657ba152c

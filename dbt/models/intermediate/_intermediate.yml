@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: int_study_condition_category
+    description: >
+      One row per study: the top-level condition category derived from the study's MeSH
+      terms and ancestors via seeds/mesh_condition_categories.csv (lowest priority wins,
+      ties alphabetical). 'Unknown' when no term maps, which includes every study without
+      conditionBrowseModule.
+    columns:
+      - name: nct_id
+        description: Study.
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_studies')
+                field: nct_id
+      - name: condition_category
+        description: Top-level category or 'Unknown'.
+        data_tests: [not_null]
+      - name: n_matched_categories
+        description: Number of distinct categories the study's terms map to (0 = Unknown).
+
+  - name: int_study_drugs
+    description: >
+      One row per study x canonical drug (DRUG / BIOLOGICAL interventions joined to
+      stg_drug_names, canonical name not NULL). Shared by dim_drug and bridge_study_drug.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [nct_id, drug_key]
+    columns:
+      - name: nct_id
+        description: Study.
+        data_tests: [not_null]
+      - name: canonical_name
+        description: Canonical drug name.
+        data_tests: [not_null]
+      - name: drug_key
+        description: md5 of canonical_name.
+        data_tests: [not_null]

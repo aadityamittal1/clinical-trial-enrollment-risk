@@ -1,0 +1,57 @@
+table fct_study_sites
+	lineageTag: 05804433-d76d-5771-83ac-b1c1b506e7e2
+
+	measure 'Site Count' = COUNTROWS(fct_study_sites)
+		formatString: #,0
+		lineageTag: 11700948-07ac-571c-a733-efba23540b7d
+
+	column site_key
+		dataType: string
+		isHidden
+		lineageTag: 1b4e655c-f66e-5a6c-9e8e-926b12a2fea4
+		summarizeBy: none
+		sourceColumn: site_key
+
+	column nct_id
+		dataType: string
+		lineageTag: 20daceb3-62b7-5cc9-a156-85a1e76648e0
+		summarizeBy: none
+		sourceColumn: nct_id
+
+	column country
+		dataType: string
+		lineageTag: acf7f0f8-e7eb-5a36-97bb-5f9801c738aa
+		summarizeBy: none
+		sourceColumn: country
+		dataCategory: Country
+
+	column state
+		dataType: string
+		lineageTag: d052defc-1247-576d-8764-6057526cfd6e
+		summarizeBy: none
+		sourceColumn: state
+
+	column city
+		dataType: string
+		lineageTag: 6dc19029-8d98-534b-8cca-20f1b7a1a4f9
+		summarizeBy: none
+		sourceColumn: city
+		dataCategory: City
+
+	column latitude
+		dataType: double
+		lineageTag: 42c3d736-b8c9-5fdf-bcfd-54fe217953d4
+		summarizeBy: none
+		sourceColumn: latitude
+		dataCategory: Latitude
+
+	column longitude
+		dataType: double
+		lineageTag: e314dbde-6978-564e-8a26-8318221067e1
+		summarizeBy: none
+		sourceColumn: longitude
+		dataCategory: Longitude
+
+	partition fct_study_sites = m
+		mode: import
+		source = fnMart("fct_study_sites")

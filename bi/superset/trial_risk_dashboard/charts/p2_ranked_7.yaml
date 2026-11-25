@@ -1,0 +1,40 @@
+slice_name: Open trials ranked by risk
+description: 'Default view: all open trials sorted by risk_score descending. Change the sort in params.order_by_cols; sponsor
+  class is a dashboard filter.'
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  datasource: 7__table
+  viz_type: table
+  row_limit: 500
+  extra_form_data: {}
+  dashboards: []
+  query_mode: raw
+  all_columns:
+  - ctgov_link
+  - brief_title
+  - phase
+  - lead_sponsor_class
+  - risk_score
+  - top_driver_1
+  - top_driver_2
+  - top_driver_3
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: is_open AND risk_score IS NOT NULL
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+  order_by_cols:
+  - '["risk_score", false]'
+  server_pagination: true
+  allow_render_html: true
+  include_search: true
+  table_timestamp_format: '%Y-%m-%d'
+query_context: null
+cache_timeout: null
+uuid: d0e13b8a-23a4-54e7-88b2-1fec910a2d8c
+version: 1.0.0
+dataset_uuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb

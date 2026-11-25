@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-serving
+  labels:
+    app.kubernetes.io/name: serving
+    {{- include "trial-risk.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.serving.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: serving
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: serving
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: serving
+          image: {{ include "trial-risk.image" .Values.images.serving }}
+          imagePullPolicy: {{ .Values.images.serving.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.serving.port }}
+          env:
+            # Fail fast when MLflow is slow or down so /health cannot block for minutes
+            # (the MLflow client defaults are 7 retries with backoff and a 120 s timeout).
+            - name: MLFLOW_HTTP_REQUEST_MAX_RETRIES
+              value: {{ .Values.serving.mlflowHttp.maxRetries | quote }}
+            - name: MLFLOW_HTTP_REQUEST_TIMEOUT
+              value: {{ .Values.serving.mlflowHttp.timeoutSeconds | quote }}
+          envFrom:
+            {{- include "trial-risk.envFrom" . | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # Liveness only checks the port is open: a slow MLflow must not get the pod killed.
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.serving.resources | nindent 12 }}
+          {{- if or .Values.duckdb.persistence.enabled .Values.keyVault.enabled }}
+          volumeMounts:
+            {{- if .Values.duckdb.persistence.enabled }}
+            - name: duckdb
+              mountPath: {{ .Values.duckdb.persistence.mountPath }}
+            {{- end }}
+            {{- if .Values.keyVault.enabled }}
+            {{- include "trial-risk.csiMount" . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+      {{- if or .Values.duckdb.persistence.enabled .Values.keyVault.enabled }}
+      volumes:
+        {{- if .Values.duckdb.persistence.enabled }}
+        - name: duckdb
+          persistentVolumeClaim:
+            claimName: {{ .Values.duckdb.persistence.claimName }}
+        {{- end }}
+        {{- if .Values.keyVault.enabled }}
+        {{- include "trial-risk.csiVolume" . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-serving
+  labels:
+    app.kubernetes.io/name: serving
+    {{- include "trial-risk.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.serving.service.type }}
+  selector:
+    app.kubernetes.io/name: serving
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.serving.port }}
+      targetPort: http
+      {{- if and (eq .Values.serving.service.type "NodePort") .Values.serving.service.nodePort }}
+      nodePort: {{ .Values.serving.service.nodePort }}
+      {{- end }}

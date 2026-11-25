@@ -1,0 +1,121 @@
+# Base values. Override with values-local.yaml or values-aks.yaml.
+# Never put secret values in this file; see secrets.* below.
+
+configMapName: trial-risk-env
+
+images:
+  pipeline:
+    repository: ghcr.io/OWNER/trial-risk-pipeline
+    tag: latest
+    pullPolicy: IfNotPresent
+  serving:
+    repository: ghcr.io/OWNER/trial-risk-serving
+    tag: latest
+    pullPolicy: IfNotPresent
+  azurite:
+    repository: mcr.microsoft.com/azure-storage/azurite
+    tag: "3.33.0"
+
+imagePullSecrets: []
+
+# Rendered verbatim into the ConfigMap named by configMapName. Non-secret only.
+config:
+  MODE: local
+  STORAGE_BACKEND: file
+  LANDING_DIR: /data/landing
+  LANDING_CONTAINER: landing
+  DUCKDB_PATH: /data/warehouse/trialrisk.duckdb
+  MLFLOW_TRACKING_URI: http://trial-risk-mlflow:5000
+  MODEL_NAME: trial-risk-lgbm
+  SNOWFLAKE_ACCOUNT: ""
+  SNOWFLAKE_USER: ""
+  SNOWFLAKE_ROLE: ""
+  SNOWFLAKE_WAREHOUSE: ""
+  SNOWFLAKE_DATABASE: ""
+
+# Secret. Either create it out of band (local-up.sh does, from .env) and leave
+# create=false, or set create=true and pass data with --set-file / --set at
+# install time. Values are never committed.
+secrets:
+  name: trial-risk-secrets
+  create: false
+  data: {}
+
+serving:
+  replicas: 1
+  port: 8000
+  service:
+    type: ClusterIP
+    nodePort: 0
+  # MLflow client settings for the serving container (env MLFLOW_HTTP_REQUEST_*).
+  mlflowHttp:
+    maxRetries: 1
+    timeoutSeconds: 10
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+mlflow:
+  enabled: true
+  port: 5000
+  artifactRoot: wasbs://mlflow@ACCOUNT.blob.core.windows.net/
+  ensureContainer: false
+  # One uvicorn worker: MLflow's default of 4 overflows the 1Gi limit; SQLite gains nothing more.
+  workers: 1
+  storage:
+    size: 1Gi
+    storageClassName: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+azurite:
+  enabled: false
+  # Off: blob data lives in an emptyDir and is lost when the pod restarts.
+  persistence:
+    enabled: false
+    size: 1Gi
+    storageClassName: ""
+    claimName: trial-risk-azurite
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+duckdb:
+  persistence:
+    enabled: false
+    size: 2Gi
+    storageClassName: ""
+    mountPath: /data
+    claimName: trial-risk-warehouse
+
+rbac:
+  create: true
+  # ServiceAccounts created by the apache-airflow chart (release "airflow").
+  airflowServiceAccounts:
+    - airflow-scheduler
+    - airflow-worker
+    - airflow-triggerer
+
+keyVault:
+  enabled: false
+  # Set true only when the openfda-api-key secret exists in Key Vault.
+  openfdaApiKey: false
+  name: ""
+  tenantId: ""
+  clientId: ""
+  # Key Vault secret name -> key in the synced Kubernetes Secret.
+  secrets:
+    - objectName: azure-storage-connection-string
+      key: AZURE_STORAGE_CONNECTION_STRING
+    - objectName: snowflake-password
+      key: SNOWFLAKE_PASSWORD

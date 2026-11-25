@@ -1,0 +1,79 @@
+# Official apache-airflow chart (release "airflow", namespace trial-risk), local kind.
+#   helm repo add apache-airflow https://airflow.apache.org
+#   helm upgrade --install airflow apache-airflow/airflow --version 1.15.0 \
+#     -n trial-risk -f deploy/helm/airflow-values-local.yaml
+#
+# DAG delivery decision: DAGs are BAKED INTO a derived Airflow image
+# (deploy/docker/airflow.Dockerfile copies dags/ to /opt/airflow/dags). No
+# git-sync, so kind needs no network access to a Git remote and no credentials.
+# Trade-off: a DAG change requires rebuilding and reloading the image.
+# deploy/local-up.sh rebuilds + `kind load`s it on every run and then restarts
+# the scheduler/webserver, because a re-tagged ":local" image is only picked up
+# by new pods.
+images:
+  airflow:
+    repository: trial-risk-airflow
+    tag: local
+    pullPolicy: IfNotPresent
+
+# Keep in step with the base image in deploy/docker/airflow.Dockerfile.
+airflowVersion: "2.10.5"
+defaultAirflowTag: "2.10.5"
+
+executor: LocalExecutor
+
+dags:
+  persistence:
+    enabled: false
+  gitSync:
+    enabled: false
+
+# Airflow metadata DB: the chart's bundled PostgreSQL (local only).
+# UNVERIFIED (needs `helm template` to confirm): Bitnami moved versioned
+# images to bitnamilegacy in 2025, so the chart's default tag may not pull.
+postgresql:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+
+# Disable components not needed with LocalExecutor.
+redis:
+  enabled: false
+triggerer:
+  enabled: false
+statsd:
+  enabled: false
+flower:
+  enabled: false
+
+webserver:
+  service:
+    type: NodePort
+    ports:
+      - name: airflow-ui
+        port: 8080
+        targetPort: 8080
+        nodePort: 30080
+  # Default chart user is created by the chart's job; change it after first login.
+  defaultUser:
+    enabled: true
+
+# Contract with dags/: exactly these TRIAL_RISK_* names.
+env:
+  - name: TRIAL_RISK_MODE
+    value: local
+  - name: TRIAL_RISK_NAMESPACE
+    value: trial-risk
+  - name: TRIAL_RISK_IMAGE
+    value: trial-risk-pipeline:local
+  - name: TRIAL_RISK_IMAGE_PULL_POLICY
+    value: IfNotPresent
+  - name: TRIAL_RISK_CONFIGMAP
+    value: trial-risk-env
+  - name: TRIAL_RISK_SECRET
+    value: trial-risk-secrets
+  - name: TRIAL_RISK_DUCKDB_PVC
+    value: trial-risk-warehouse
+  - name: TRIAL_RISK_DUCKDB_MOUNT
+    value: /data

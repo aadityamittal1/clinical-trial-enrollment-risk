@@ -1,0 +1,25 @@
+table dim_condition
+	lineageTag: 93436f9d-fa9c-5297-86cc-e7040667c3d7
+
+	column condition_key
+		dataType: string
+		isHidden
+		lineageTag: cbe60912-9b1c-5c58-9e58-4e871250d4f0
+		summarizeBy: none
+		sourceColumn: condition_key
+
+	column condition_name
+		dataType: string
+		lineageTag: 131aa9a4-7cd1-5218-b7cc-6e5d28d1b446
+		summarizeBy: none
+		sourceColumn: condition_name
+
+	column condition_category
+		dataType: string
+		lineageTag: 1cffe228-afbb-5683-972b-4da196c66ed0
+		summarizeBy: none
+		sourceColumn: condition_category
+
+	partition dim_condition = m
+		mode: import
+		source = fnMart("dim_condition")

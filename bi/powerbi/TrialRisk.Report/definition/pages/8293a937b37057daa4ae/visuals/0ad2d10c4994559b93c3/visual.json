@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "0ad2d10c4994559b93c3",
+  "position": {
+    "x": 820,
+    "y": 420,
+    "z": 0,
+    "height": 280,
+    "width": 440,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "stackedColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "risk_band"
+                }
+              },
+              "queryRef": "ml_scores_latest.risk_band",
+              "nativeQueryRef": "risk_band"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "ml_scores_latest"
+                    }
+                  },
+                  "Property": "Scored Trials"
+                }
+              },
+              "queryRef": "ml_scores_latest.Scored Trials",
+              "nativeQueryRef": "Scored Trials"
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "lead_sponsor_class"
+                }
+              },
+              "queryRef": "dim_study.lead_sponsor_class",
+              "nativeQueryRef": "lead_sponsor_class"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Risk distribution by sponsor class'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

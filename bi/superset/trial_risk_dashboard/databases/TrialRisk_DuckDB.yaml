@@ -1,0 +1,14 @@
+# PLACEHOLDER: edit sqlalchemy_uri to the absolute path of your DUCKDB_PATH warehouse file before importing.
+database_name: TrialRisk DuckDB
+sqlalchemy_uri: duckdb:////app/data/warehouse/trialrisk.duckdb?access_mode=read_only
+cache_timeout: null
+expose_in_sqllab: true
+allow_run_async: false
+allow_ctas: false
+allow_cvas: false
+allow_dml: false
+allow_file_upload: false
+extra:
+  allows_virtual_table_explore: true
+uuid: 0263bb34-8541-524d-8a8a-b12576446937
+version: 1.0.0

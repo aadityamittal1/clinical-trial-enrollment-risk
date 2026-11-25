@@ -1,0 +1,31 @@
+slice_name: Risk distribution by sponsor class
+description: null
+certified_by: null
+certification_details: null
+viz_type: box_plot
+params:
+  datasource: 9__table
+  viz_type: box_plot
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  columns:
+  - nct_id
+  groupby:
+  - lead_sponsor_class
+  metrics:
+  - mean_risk_score
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: is_open AND risk_score IS NOT NULL
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+  whiskerOptions: Tukey
+  x_ticks_layout: auto
+query_context: null
+cache_timeout: null
+uuid: a9ebba76-710e-5aec-8817-8342933d49f6
+version: 1.0.0
+dataset_uuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb

@@ -1,0 +1,125 @@
+{{- if .Values.mlflow.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-mlflow
+  labels:
+    {{- include "trial-risk.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.mlflow.storage.storageClassName }}
+  storageClassName: {{ .Values.mlflow.storage.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.mlflow.storage.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-mlflow
+  labels:
+    app.kubernetes.io/name: mlflow
+    {{- include "trial-risk.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mlflow
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: mlflow
+          # The pipeline image already contains mlflow and azure-storage-blob.
+          image: {{ include "trial-risk.image" .Values.images.pipeline }}
+          imagePullPolicy: {{ .Values.images.pipeline.pullPolicy }}
+          {{- if .Values.mlflow.ensureContainer }}
+          # Local (Azurite): create the artifact container first.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              python -c "
+              import os
+              from azure.storage.blob import BlobServiceClient
+              svc = BlobServiceClient.from_connection_string(os.environ['AZURE_STORAGE_CONNECTION_STRING'])
+              try:
+                  svc.create_container('mlflow')
+              except Exception as exc:
+                  print('create_container:', exc)
+              "
+              exec mlflow server --host 0.0.0.0 --port {{ .Values.mlflow.port }} --workers {{ .Values.mlflow.workers | default 1 }} --backend-store-uri sqlite:////mlflow/mlflow.db --artifacts-destination {{ .Values.mlflow.artifactRoot }} --serve-artifacts
+          {{- else }}
+          command: ["mlflow", "server"]
+          args:
+            - --host=0.0.0.0
+            - --port={{ .Values.mlflow.port }}
+            - --workers={{ .Values.mlflow.workers | default 1 }}
+            - --backend-store-uri=sqlite:////mlflow/mlflow.db
+            - --artifacts-destination={{ .Values.mlflow.artifactRoot }}
+            - --serve-artifacts
+          {{- end }}
+          env:
+            - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: "*"
+            # Stops the GenAI job runner and its consumer processes: unused here and over the memory limit.
+            - name: MLFLOW_SERVER_ENABLE_JOB_EXECUTION
+              value: "false"
+          envFrom:
+            {{- include "trial-risk.envFrom" . | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.mlflow.port }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.mlflow.resources | nindent 12 }}
+          volumeMounts:
+            - name: mlflow-data
+              mountPath: /mlflow
+            {{- if .Values.keyVault.enabled }}
+            {{- include "trial-risk.csiMount" . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: mlflow-data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-mlflow
+        {{- if .Values.keyVault.enabled }}
+        {{- include "trial-risk.csiVolume" . | nindent 8 }}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mlflow
+  labels:
+    app.kubernetes.io/name: mlflow
+    {{- include "trial-risk.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mlflow
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.mlflow.port }}
+      targetPort: http
+{{- end }}

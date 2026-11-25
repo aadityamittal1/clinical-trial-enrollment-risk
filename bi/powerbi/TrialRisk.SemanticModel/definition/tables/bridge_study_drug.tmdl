@@ -1,0 +1,23 @@
+table bridge_study_drug
+	lineageTag: ec2b0b14-8280-5d35-bd63-97aedb9b50e4
+
+	measure 'Study Drug Links' = COUNTROWS(bridge_study_drug)
+		formatString: #,0
+		lineageTag: 4947ecc6-348f-55e8-80d0-22f3e353913d
+
+	column nct_id
+		dataType: string
+		lineageTag: 380402d6-a3ca-5b3e-acb5-03e643120aa2
+		summarizeBy: none
+		sourceColumn: nct_id
+
+	column drug_key
+		dataType: string
+		isHidden
+		lineageTag: bb865f7d-6c9c-578a-8367-97179848d0d0
+		summarizeBy: none
+		sourceColumn: drug_key
+
+	partition bridge_study_drug = m
+		mode: import
+		source = fnMart("bridge_study_drug")

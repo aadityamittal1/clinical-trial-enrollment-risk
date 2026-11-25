@@ -1,0 +1,157 @@
+# STATIC TIER: not executed by the authors.
+name: ci
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run mypy common ingestion ml serving pipeline
+      - run: uv run pytest
+
+  pipeline-sample:
+    # Fast job, no cluster: run the pipeline on the sample snapshot, then the model smoke test.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run python -m pipeline run --source sample
+      - run: uv run pytest tests/ml -k smoke
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build pipeline image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/pipeline.Dockerfile
+          push: false
+          tags: trial-risk-pipeline:local
+      - name: Build serving image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/serving.Dockerfile
+          push: false
+          tags: trial-risk-serving:local
+      - name: Build airflow image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/airflow.Dockerfile
+          push: false
+          tags: trial-risk-airflow:local
+
+  kind-e2e:
+    # Separate job so a kind failure is distinguishable from lint/test failures.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: azure/setup-helm@v4
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: trial-risk
+          config: deploy/kind/cluster.yaml
+      - run: uv sync
+      - name: Bring up the stack on kind
+        run: bash deploy/local-up.sh
+      - name: Wait for the stack in the cluster
+        run: |
+          kubectl get pods -n trial-risk
+          kubectl wait --for=condition=Available deployment --all -n trial-risk --timeout=300s
+          kubectl get pods -n trial-risk -o wide
+      - name: Pipeline on the sample snapshot, in the cluster
+        # Same command as the trial_risk_sample DAG, run as a Job with the same image,
+        # env, PVC and security context as the Airflow pods (load, dbt build and tests,
+        # train/register through the in-cluster MLflow, score).
+        run: |
+          kubectl -n trial-risk delete job pipeline-sample --ignore-not-found
+          cat <<'YAML' | kubectl -n trial-risk apply -f -
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: pipeline-sample
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                restartPolicy: Never
+                securityContext:
+                  runAsUser: 10001
+                  fsGroup: 10001
+                containers:
+                  - name: pipeline
+                    image: trial-risk-pipeline:local
+                    imagePullPolicy: Never
+                    command: ["python", "-m", "pipeline", "run", "--source", "sample"]
+                    envFrom:
+                      - configMapRef:
+                          name: trial-risk-env
+                      - secretRef:
+                          name: trial-risk-secrets
+                    volumeMounts:
+                      - name: warehouse
+                        mountPath: /data
+                volumes:
+                  - name: warehouse
+                    persistentVolumeClaim:
+                      claimName: trial-risk-warehouse
+          YAML
+          succeeded=0
+          failed=0
+          for _ in $(seq 1 90); do   # up to 15 minutes
+            succeeded="$(kubectl -n trial-risk get job pipeline-sample -o jsonpath='{.status.succeeded}')"
+            failed="$(kubectl -n trial-risk get job pipeline-sample -o jsonpath='{.status.failed}')"
+            if [ "${succeeded:-0}" -ge 1 ] || [ "${failed:-0}" -ge 1 ]; then break; fi
+            sleep 10
+          done
+          echo "---- pipeline-sample logs ----"
+          kubectl -n trial-risk logs job/pipeline-sample --all-containers || true
+          if [ "${succeeded:-0}" -lt 1 ]; then
+            echo "pipeline-sample did not succeed (succeeded=${succeeded:-0} failed=${failed:-0})" >&2
+            kubectl -n trial-risk describe job pipeline-sample || true
+            exit 1
+          fi
+      - name: Scoring API serves the trained model
+        # /health retries the registry on every call while no model is loaded; allow
+        # up to ~90 s (the API re-checks a loaded model every 60 s).
+        run: |
+          for _ in $(seq 1 18); do
+            body="$(curl -fsS http://localhost:8000/health || true)"
+            echo "$body"
+            status="$(printf '%s' "$body" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("status", ""))' 2>/dev/null || true)"
+            if [ "$status" = "ok" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "GET /health never reported status ok" >&2
+          exit 1
+      - name: Model smoke test
+        run: uv run pytest tests/ml -k smoke
+      - name: Dump cluster state on failure
+        if: failure()
+        run: |
+          kubectl get pods -n trial-risk -o wide || true
+          kubectl -n trial-risk logs job/pipeline-sample --all-containers || true
+          kubectl -n trial-risk get events --sort-by=.lastTimestamp | tail -n 60 || true
+          kubectl -n trial-risk describe deployment trial-risk-mlflow trial-risk-serving || true
+          kubectl -n trial-risk describe pods -l 'app.kubernetes.io/name in (mlflow,serving)' || true
+          for app in mlflow serving; do
+            echo "---- ${app} logs (current) ----"
+            kubectl -n trial-risk logs -l "app.kubernetes.io/name=${app}" --all-containers --tail=100 || true
+            echo "---- ${app} logs (previous) ----"
+            kubectl -n trial-risk logs -l "app.kubernetes.io/name=${app}" --all-containers --tail=100 --previous || true
+          done

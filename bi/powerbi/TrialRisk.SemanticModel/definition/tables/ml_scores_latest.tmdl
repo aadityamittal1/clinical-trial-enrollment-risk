@@ -1,0 +1,95 @@
+table ml_scores_latest
+	lineageTag: e832ee02-9ab3-52d0-82ac-03ce8c7fe7f9
+
+	/// Scores at or above this count as high risk. Change it here only.
+	measure 'High Risk Threshold' = 0.5
+		formatString: 0.00
+		lineageTag: 70a42786-064d-51c9-a49c-e76b1c3bbca6
+
+	measure 'Scored Trials' = COUNTROWS(ml_scores_latest)
+		formatString: #,0
+		lineageTag: 4d3b2561-e176-5361-99a6-4b1f095498cf
+
+	measure 'Mean Risk Score' = AVERAGE(ml_scores_latest[risk_score])
+		formatString: 0.000
+		lineageTag: 4d8f2d89-7a06-567d-85d7-f583bff7c398
+
+	measure 'High Risk Count' = CALCULATE(COUNTROWS(ml_scores_latest), ml_scores_latest[risk_score] >= [High Risk Threshold])
+		formatString: #,0
+		lineageTag: 5339fefa-1edf-5634-bdf3-bc57c2bb27e6
+
+	column nct_id
+		dataType: string
+		lineageTag: f6ce395b-4d55-52ca-93eb-478df5881bfa
+		summarizeBy: none
+		sourceColumn: nct_id
+
+	column risk_score
+		dataType: double
+		lineageTag: 1c820de8-f9c8-51ed-a9c3-c1ea266a30c5
+		summarizeBy: none
+		sourceColumn: risk_score
+
+	column model_version
+		dataType: string
+		lineageTag: 31f08eec-94a4-54ec-b99d-c3b95281b498
+		summarizeBy: none
+		sourceColumn: model_version
+
+	column scored_at
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: b58f3407-fde1-5a09-8c03-b5aaa0d821e0
+		summarizeBy: none
+		sourceColumn: scored_at
+
+	column top_driver_1
+		dataType: string
+		lineageTag: 365296b2-af35-5b7d-ae64-ba547f32952a
+		summarizeBy: none
+		sourceColumn: top_driver_1
+
+	column top_driver_2
+		dataType: string
+		lineageTag: f33a94df-74a8-5063-8142-545abdaeeeeb
+		summarizeBy: none
+		sourceColumn: top_driver_2
+
+	column top_driver_3
+		dataType: string
+		lineageTag: 1e867c99-91c8-5b06-818a-5c86e7e10f23
+		summarizeBy: none
+		sourceColumn: top_driver_3
+
+	column top_driver_1_shap
+		dataType: double
+		lineageTag: a9b5f92f-ae19-5438-8b36-b858c6065720
+		summarizeBy: none
+		sourceColumn: top_driver_1_shap
+
+	column top_driver_2_shap
+		dataType: double
+		lineageTag: 74fe3a48-9384-5ec4-8be4-a7f5c8d01b86
+		summarizeBy: none
+		sourceColumn: top_driver_2_shap
+
+	column top_driver_3_shap
+		dataType: double
+		lineageTag: 62dbccd7-70c7-5b42-bc27-e08ae41fa927
+		summarizeBy: none
+		sourceColumn: top_driver_3_shap
+
+	column shap_values
+		dataType: string
+		lineageTag: 822ad64f-bbe8-5d62-bfcb-4015c285c11d
+		summarizeBy: none
+		sourceColumn: shap_values
+
+	column risk_band = IF(ISBLANK(ml_scores_latest[risk_score]), BLANK(), FORMAT(MIN(INT(ml_scores_latest[risk_score] * 10), 9) / 10, "0.0") & "-" & FORMAT(MIN(INT(ml_scores_latest[risk_score] * 10), 9) / 10 + 0.1, "0.0"))
+		dataType: string
+		lineageTag: 95e2a038-62d4-58de-a55a-01722d2f9b99
+		summarizeBy: none
+
+	partition ml_scores_latest = m
+		mode: import
+		source = fnMart("ml_scores_latest")

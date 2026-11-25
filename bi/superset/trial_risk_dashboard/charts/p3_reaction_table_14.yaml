@@ -1,0 +1,33 @@
+slice_name: Top reactions per drug
+description: null
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  datasource: 14__table
+  viz_type: table
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  query_mode: raw
+  all_columns:
+  - canonical_name
+  - reaction_rank
+  - reaction
+  - report_count
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: reaction_rank <= 10
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+  order_by_cols:
+  - '["canonical_name", true]'
+  - '["reaction_rank", true]'
+  include_search: true
+query_context: null
+cache_timeout: null
+uuid: b7f4fb04-8fe4-55d6-b407-089473967dcd
+version: 1.0.0
+dataset_uuid: 5edfab21-50aa-5784-81fd-72d657ba152c

@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. Do not commit real values.
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+location            = "eastus2"
+budget_alert_emails = ["you@example.com"]
+# First day of the CURRENT month.
+budget_start_date   = "2026-11-01T00:00:00Z"
+
+# Do NOT put secrets in a file. Export them instead:
+#   export TF_VAR_snowflake_password=...
+#   export TF_VAR_openfda_api_key=...   (optional)

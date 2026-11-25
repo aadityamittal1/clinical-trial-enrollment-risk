@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "4657b7bd43575aad9ac6",
+  "position": {
+    "x": 660,
+    "y": 130,
+    "z": 0,
+    "height": 280,
+    "width": 600,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "donutChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "lead_sponsor_class"
+                }
+              },
+              "queryRef": "dim_study.lead_sponsor_class",
+              "nativeQueryRef": "lead_sponsor_class"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "Trial Count"
+                }
+              },
+              "queryRef": "dim_study.Trial Count",
+              "nativeQueryRef": "Trial Count"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Sponsor-class split'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

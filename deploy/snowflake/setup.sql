@@ -1,0 +1,89 @@
+-- Snowflake setup for the trial-risk platform. NOT TESTED against a live account.
+-- Run once as ACCOUNTADMIN. Replace the two placeholders before running:
+--   <AZURE_TENANT_ID>   from `tofu output tenant_id`
+--   <STORAGE_ACCOUNT>   from `tofu output storage_account_name`
+-- No credentials appear in this file. Set the service user's password/key in
+-- the Snowflake UI; the same password goes to Key Vault via TF_VAR_snowflake_password.
+
+USE ROLE ACCOUNTADMIN;
+
+-- Cost guardrail: suspend at 75 % of a small monthly credit quota.
+CREATE RESOURCE MONITOR IF NOT EXISTS TRIAL_RISK_RM
+  WITH CREDIT_QUOTA = 5
+  FREQUENCY = MONTHLY
+  START_TIMESTAMP = IMMEDIATELY
+  TRIGGERS ON 75 PERCENT DO SUSPEND
+           ON 100 PERCENT DO SUSPEND_IMMEDIATE;
+
+CREATE WAREHOUSE IF NOT EXISTS TRIAL_RISK_WH
+  WAREHOUSE_SIZE = 'XSMALL'
+  AUTO_SUSPEND = 60
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE
+  RESOURCE_MONITOR = TRIAL_RISK_RM;
+
+CREATE DATABASE IF NOT EXISTS TRIAL_RISK;
+CREATE SCHEMA IF NOT EXISTS TRIAL_RISK.RAW;
+CREATE SCHEMA IF NOT EXISTS TRIAL_RISK.STAGING;
+CREATE SCHEMA IF NOT EXISTS TRIAL_RISK.MARTS;
+
+-- Role and grants.
+CREATE ROLE IF NOT EXISTS TRIAL_RISK_ROLE;
+GRANT USAGE, OPERATE ON WAREHOUSE TRIAL_RISK_WH TO ROLE TRIAL_RISK_ROLE;
+GRANT USAGE ON DATABASE TRIAL_RISK TO ROLE TRIAL_RISK_ROLE;
+-- dbt and the loader run `create schema if not exists`, which needs this even
+-- when the schema already exists.
+GRANT CREATE SCHEMA ON DATABASE TRIAL_RISK TO ROLE TRIAL_RISK_ROLE;
+GRANT ALL PRIVILEGES ON SCHEMA TRIAL_RISK.RAW TO ROLE TRIAL_RISK_ROLE;
+GRANT ALL PRIVILEGES ON SCHEMA TRIAL_RISK.STAGING TO ROLE TRIAL_RISK_ROLE;
+GRANT ALL PRIVILEGES ON SCHEMA TRIAL_RISK.MARTS TO ROLE TRIAL_RISK_ROLE;
+GRANT ALL ON FUTURE TABLES IN SCHEMA TRIAL_RISK.RAW TO ROLE TRIAL_RISK_ROLE;
+GRANT ALL ON FUTURE TABLES IN SCHEMA TRIAL_RISK.STAGING TO ROLE TRIAL_RISK_ROLE;
+GRANT ALL ON FUTURE TABLES IN SCHEMA TRIAL_RISK.MARTS TO ROLE TRIAL_RISK_ROLE;
+GRANT ALL ON FUTURE VIEWS IN SCHEMA TRIAL_RISK.STAGING TO ROLE TRIAL_RISK_ROLE;
+GRANT ALL ON FUTURE VIEWS IN SCHEMA TRIAL_RISK.MARTS TO ROLE TRIAL_RISK_ROLE;
+
+-- Service user (set its credentials separately; never in this file).
+--
+-- !!! WARNING: PASSWORD-ONLY SIGN-IN WILL PROBABLY BE REJECTED. !!!
+-- Snowflake is retiring single-factor password sign-in, and a new account is
+-- likely to refuse it for this user. The code (common/warehouse.py, the dbt
+-- `cloud` profile, Key Vault secret `snowflake-password`) only supports a
+-- password today. Key-pair authentication (RSA_PUBLIC_KEY on this user, a
+-- private key in Key Vault, and the matching connector / profile settings)
+-- will most likely be needed before the first cloud run and is NOT wired yet.
+-- Consider TYPE = SERVICE for this user once key-pair auth is in place.
+CREATE USER IF NOT EXISTS TRIAL_RISK_SVC
+  DEFAULT_ROLE = TRIAL_RISK_ROLE
+  DEFAULT_WAREHOUSE = TRIAL_RISK_WH
+  DEFAULT_NAMESPACE = TRIAL_RISK.RAW;
+GRANT ROLE TRIAL_RISK_ROLE TO USER TRIAL_RISK_SVC;
+-- Lets SYSADMIN (and so ACCOUNTADMIN) USE ROLE TRIAL_RISK_ROLE below.
+GRANT ROLE TRIAL_RISK_ROLE TO ROLE SYSADMIN;
+
+-- Storage integration on the landing container.
+CREATE STORAGE INTEGRATION IF NOT EXISTS TRIAL_RISK_LANDING_INT
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = 'AZURE'
+  ENABLED = TRUE
+  AZURE_TENANT_ID = '<AZURE_TENANT_ID>'
+  STORAGE_ALLOWED_LOCATIONS = ('azure://<STORAGE_ACCOUNT>.blob.core.windows.net/landing/');
+
+-- Then: DESC STORAGE INTEGRATION TRIAL_RISK_LANDING_INT; open
+-- AZURE_CONSENT_URL, accept, and grant the AZURE_MULTI_TENANT_APP_NAME
+-- service principal "Storage Blob Data Reader" on the storage account.
+
+GRANT USAGE ON INTEGRATION TRIAL_RISK_LANDING_INT TO ROLE TRIAL_RISK_ROLE;
+
+USE ROLE TRIAL_RISK_ROLE;
+USE WAREHOUSE TRIAL_RISK_WH;
+USE DATABASE TRIAL_RISK;
+
+CREATE FILE FORMAT IF NOT EXISTS RAW.JSON_GZ
+  TYPE = JSON
+  COMPRESSION = AUTO;
+
+CREATE STAGE IF NOT EXISTS RAW.LANDING_STAGE
+  URL = 'azure://<STORAGE_ACCOUNT>.blob.core.windows.net/landing/'
+  STORAGE_INTEGRATION = TRIAL_RISK_LANDING_INT
+  FILE_FORMAT = RAW.JSON_GZ;

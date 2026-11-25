@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "178c13499a435667835e",
+  "position": {
+    "x": 20,
+    "y": 130,
+    "z": 0,
+    "height": 280,
+    "width": 620,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "stackedColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "phase"
+                }
+              },
+              "queryRef": "dim_study.phase",
+              "nativeQueryRef": "phase"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "Trial Count"
+                }
+              },
+              "queryRef": "dim_study.Trial Count",
+              "nativeQueryRef": "Trial Count"
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "overall_status"
+                }
+              },
+              "queryRef": "dim_study.overall_status",
+              "nativeQueryRef": "overall_status"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Trials by phase and status'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

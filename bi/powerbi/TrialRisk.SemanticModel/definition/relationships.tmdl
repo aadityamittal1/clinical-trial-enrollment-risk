@@ -1,0 +1,45 @@
+relationship d061091d-2d4f-5bd8-8c3d-afd2192bf0e7
+	fromCardinality: one
+	toCardinality: one
+	crossFilteringBehavior: bothDirections
+	fromColumn: ml_features.nct_id
+	toColumn: dim_study.nct_id
+
+relationship 0550d70a-40a1-5c31-9635-55d636790a58
+	fromColumn: ml_scores_latest.nct_id
+	toColumn: dim_study.nct_id
+
+relationship 93ec8cea-0744-52d3-a76d-51f3e62ad0c7
+	fromColumn: fct_trial_outcomes.nct_id
+	toColumn: dim_study.nct_id
+
+relationship a502c4c7-a2c5-53c5-8e2b-f71826ac0c80
+	fromColumn: fct_study_sites.nct_id
+	toColumn: dim_study.nct_id
+
+relationship 1c22e809-0823-5fd8-9940-641006261cbe
+	crossFilteringBehavior: bothDirections
+	fromColumn: bridge_study_condition.nct_id
+	toColumn: dim_study.nct_id
+
+relationship 54f25b94-9434-5c22-a3a3-6c0f62b6aa51
+	fromColumn: bridge_study_condition.condition_key
+	toColumn: dim_condition.condition_key
+
+relationship 219c1778-bae2-5ba6-8084-8289d679cc83
+	crossFilteringBehavior: bothDirections
+	fromColumn: bridge_study_drug.nct_id
+	toColumn: dim_study.nct_id
+
+relationship 06e56b3c-166f-5ea7-906f-eb233f65eef9
+	crossFilteringBehavior: bothDirections
+	fromColumn: bridge_study_drug.drug_key
+	toColumn: dim_drug.drug_key
+
+relationship 5f7927df-d9d4-52ea-a444-36087c1f65e6
+	fromColumn: fct_drug_safety.drug_key
+	toColumn: dim_drug.drug_key
+
+relationship b0f0f648-e57e-5d45-b1c5-036377e7b548
+	fromColumn: dim_study.sponsor_key
+	toColumn: dim_sponsor.sponsor_key

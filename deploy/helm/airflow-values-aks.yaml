@@ -1,0 +1,68 @@
+# Official apache-airflow chart (release "airflow", namespace trial-risk), AKS.
+# deploy/cloud-up.sh generates an override file that replaces the env list
+# (OWNER) and the image repository; do not rely on positional --set.
+#
+# DAG delivery decision: DAGs are BAKED INTO the Airflow image
+# (deploy/docker/airflow.Dockerfile), built and pushed to GHCR by CI, same as
+# local. One mechanism for both environments; no Git credentials in the cluster.
+images:
+  airflow:
+    repository: ghcr.io/OWNER/trial-risk-airflow
+    tag: latest
+    pullPolicy: Always
+
+# Keep in step with the base image in deploy/docker/airflow.Dockerfile.
+airflowVersion: "2.10.5"
+defaultAirflowTag: "2.10.5"
+
+executor: LocalExecutor
+
+dags:
+  persistence:
+    enabled: false
+  gitSync:
+    enabled: false
+
+# Bundled PostgreSQL keeps the AKS cost to the single small node pool.
+# UNVERIFIED (needs `helm template` to confirm): see airflow-values-local.yaml.
+postgresql:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+
+redis:
+  enabled: false
+triggerer:
+  enabled: false
+statsd:
+  enabled: false
+flower:
+  enabled: false
+
+webserver:
+  service:
+    type: ClusterIP
+  defaultUser:
+    enabled: true
+
+# Contract with dags/: exactly these TRIAL_RISK_* names. In cloud mode the
+# DuckDB PVC settings are ignored (no PVC exists on AKS); TRIAL_RISK_MODE=cloud
+# selects the Snowflake path.
+env:
+  - name: TRIAL_RISK_MODE
+    value: cloud
+  - name: TRIAL_RISK_NAMESPACE
+    value: trial-risk
+  - name: TRIAL_RISK_IMAGE
+    value: ghcr.io/OWNER/trial-risk-pipeline:latest
+  - name: TRIAL_RISK_IMAGE_PULL_POLICY
+    value: Always
+  - name: TRIAL_RISK_CONFIGMAP
+    value: trial-risk-env
+  - name: TRIAL_RISK_SECRET
+    value: trial-risk-secrets
+  - name: TRIAL_RISK_DUCKDB_PVC
+    value: trial-risk-warehouse
+  - name: TRIAL_RISK_DUCKDB_MOUNT
+    value: /data

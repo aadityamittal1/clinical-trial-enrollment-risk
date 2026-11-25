@@ -1,0 +1,23 @@
+slice_name: Sponsor-class split
+description: null
+certified_by: null
+certification_details: null
+viz_type: pie
+params:
+  datasource: 3__table
+  viz_type: pie
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  metric: trial_count
+  groupby:
+  - lead_sponsor_class
+  adhoc_filters: []
+  show_labels: true
+  label_type: key_value_percent
+  donut: true
+query_context: null
+cache_timeout: null
+uuid: 9ed20958-710c-511d-9764-a915c87be001
+version: 1.0.0
+dataset_uuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb

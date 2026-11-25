@@ -1,0 +1,23 @@
+slice_name: Trial sites by country
+description: Choropleth by country name; fct_study_sites also has latitude/longitude for a deck.gl scatter if a Mapbox token
+  is available.
+certified_by: null
+certification_details: null
+viz_type: world_map
+params:
+  datasource: 4__table
+  viz_type: world_map
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  entity: country
+  country_fieldtype: name
+  metric: site_count
+  adhoc_filters: []
+  show_bubbles: false
+  linear_color_scheme: blue_white_yellow
+query_context: null
+cache_timeout: null
+uuid: 52ee64e1-a257-59cc-9253-224da070e441
+version: 1.0.0
+dataset_uuid: a23b2b79-09a2-59fc-9e11-05e559ad9c1c

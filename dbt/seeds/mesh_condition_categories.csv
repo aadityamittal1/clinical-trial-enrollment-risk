@@ -1,0 +1,32 @@
+mesh_term,condition_category,priority
+Neoplasms,Neoplasms,10
+Infections,Infections,20
+Bacterial Infections and Mycoses,Infections,20
+Virus Diseases,Infections,20
+Parasitic Diseases,Infections,20
+Mental Disorders,Mental Disorders,30
+Cardiovascular Diseases,Cardiovascular Diseases,40
+Nervous System Diseases,Nervous System Diseases,50
+Respiratory Tract Diseases,Respiratory Tract Diseases,60
+Digestive System Diseases,Digestive System Diseases,70
+Endocrine System Diseases,Endocrine System Diseases,80
+Nutritional and Metabolic Diseases,Nutritional and Metabolic Diseases,90
+Musculoskeletal Diseases,Musculoskeletal Diseases,100
+Eye Diseases,Eye Diseases,110
+Otorhinolaryngologic Diseases,"Ear, Nose, Throat and Mouth Diseases",120
+Stomatognathic Diseases,"Ear, Nose, Throat and Mouth Diseases",120
+Urogenital Diseases,Urogenital Diseases and Pregnancy Complications,130
+Female Urogenital Diseases and Pregnancy Complications,Urogenital Diseases and Pregnancy Complications,130
+Male Urogenital Diseases,Urogenital Diseases and Pregnancy Complications,130
+Skin and Connective Tissue Diseases,Skin and Connective Tissue Diseases,140
+Hemic and Lymphatic Diseases,Hemic and Lymphatic Diseases,150
+Immune System Diseases,Immune System Diseases,160
+"Congenital, Hereditary, and Neonatal Diseases and Abnormalities","Congenital, Hereditary and Neonatal Diseases",170
+Wounds and Injuries,Injuries and Environmental Disorders,180
+Disorders of Environmental Origin,Injuries and Environmental Disorders,180
+Chemically-Induced Disorders,Injuries and Environmental Disorders,180
+Occupational Diseases,Injuries and Environmental Disorders,180
+Behavioral Symptoms,Mental Disorders,190
+Behavior and Behavioral Mechanisms,Behavior and Behavioral Mechanisms,200
+Behavior,Behavior and Behavioral Mechanisms,200
+"Pathological Conditions, Signs and Symptoms","Pathological Conditions, Signs and Symptoms",210

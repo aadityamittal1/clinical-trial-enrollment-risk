@@ -1,0 +1,27 @@
+slice_name: Trials by phase and status
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  datasource: 2__table
+  viz_type: echarts_timeseries_bar
+  row_limit: 1000
+  extra_form_data: {}
+  dashboards: []
+  x_axis: phase
+  metrics:
+  - trial_count
+  groupby:
+  - overall_status
+  adhoc_filters: []
+  stack: Stack
+  orientation: vertical
+  show_legend: true
+  x_axis_sort: trial_count
+  x_axis_sort_asc: false
+query_context: null
+cache_timeout: null
+uuid: c2ab8563-bfc2-5fac-86e2-a167f9a6f27e
+version: 1.0.0
+dataset_uuid: 6a741252-e752-5fd4-96d0-a2b2dd99e1cb

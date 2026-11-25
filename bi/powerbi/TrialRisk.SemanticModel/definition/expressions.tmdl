@@ -1,0 +1,24 @@
+/// Snowflake account host, for example xy12345.west-europe.azure.snowflakecomputing.com. Placeholder: set it in Home > Transform data > Edit parameters.
+expression SnowflakeServer = "<account>.<region>.snowflakecomputing.com" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: c51e8833-d891-5eaa-bce2-494d6bc7a10e
+
+/// Snowflake virtual warehouse used for refresh.
+expression SnowflakeWarehouse = "<warehouse>" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: ed6d7167-f2cf-52c0-afb9-f4d9de9db1b8
+
+/// Snowflake database that holds the MARTS schema.
+expression SnowflakeDatabase = "<database>" meta [IsParameterQuery = true, Type = "Text", IsParameterQueryRequired = true]
+	lineageTag: f9f5df9c-40c3-5c1e-8e93-de2bc9ac7c39
+
+/// Loads one table or view of the MARTS schema and lower-cases the column names, so they match the dbt contract (Snowflake returns upper case).
+expression fnMart =
+		(tableName as text) as table =>
+		let
+		    Source = Snowflake.Databases(SnowflakeServer, SnowflakeWarehouse),
+		    Db = Source{[Name = SnowflakeDatabase, Kind = "Database"]}[Data],
+		    Schema = Db{[Name = "MARTS", Kind = "Schema"]}[Data],
+		    Item = Table.SelectRows(Schema, each [Name] = Text.Upper(tableName)){0}[Data],
+		    Lowered = Table.TransformColumnNames(Item, Text.Lower)
+		in
+		    Lowered
+	lineageTag: 2883644e-b921-5d5d-bb53-63253c28898a

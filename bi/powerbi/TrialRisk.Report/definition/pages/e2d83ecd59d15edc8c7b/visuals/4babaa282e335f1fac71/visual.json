@@ -1,0 +1,144 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "4babaa282e335f1fac71",
+  "position": {
+    "x": 20,
+    "y": 20,
+    "z": 0,
+    "height": 90,
+    "width": 1240,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "nct_id"
+                }
+              },
+              "queryRef": "dim_study.nct_id",
+              "nativeQueryRef": "nct_id"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "brief_title"
+                }
+              },
+              "queryRef": "dim_study.brief_title",
+              "nativeQueryRef": "brief_title"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "phase"
+                }
+              },
+              "queryRef": "dim_study.phase",
+              "nativeQueryRef": "phase"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "overall_status"
+                }
+              },
+              "queryRef": "dim_study.overall_status",
+              "nativeQueryRef": "overall_status"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "lead_sponsor_class"
+                }
+              },
+              "queryRef": "dim_study.lead_sponsor_class",
+              "nativeQueryRef": "lead_sponsor_class"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "enrollment_count"
+                }
+              },
+              "queryRef": "dim_study.enrollment_count",
+              "nativeQueryRef": "enrollment_count"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_study"
+                    }
+                  },
+                  "Property": "ctgov_url"
+                }
+              },
+              "queryRef": "dim_study.ctgov_url",
+              "nativeQueryRef": "ctgov_url"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Trial'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "283e414024475469937b",
+  "position": {
+    "x": 660,
+    "y": 300,
+    "z": 0,
+    "height": 400,
+    "width": 600,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_drug_safety"
+                    }
+                  },
+                  "Property": "reaction"
+                }
+              },
+              "queryRef": "fct_drug_safety.reaction",
+              "nativeQueryRef": "reaction"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fct_drug_safety"
+                    }
+                  },
+                  "Property": "Reports Across Top Reactions"
+                }
+              },
+              "queryRef": "fct_drug_safety.Reports Across Top Reactions",
+              "nativeQueryRef": "Reports Across Top Reactions"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Top reactions for those drugs'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

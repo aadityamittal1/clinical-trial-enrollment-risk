@@ -1,0 +1,183 @@
+table ml_features
+	lineageTag: 88d0eefa-f1a8-5bf0-a21d-3f64360d4016
+
+	column nct_id
+		dataType: string
+		lineageTag: 4707c342-abf2-59ec-b614-a533424a02d0
+		summarizeBy: none
+		sourceColumn: nct_id
+
+	column phase
+		dataType: string
+		lineageTag: ae79f4ed-7da0-5b30-aa11-f28bffaf906b
+		summarizeBy: none
+		sourceColumn: phase
+
+	column allocation
+		dataType: string
+		lineageTag: 93b167ef-d06b-5452-8777-19809ce1acbc
+		summarizeBy: none
+		sourceColumn: allocation
+
+	column masking
+		dataType: string
+		lineageTag: a79ffccf-7ee2-56df-9339-e6730b9dc223
+		summarizeBy: none
+		sourceColumn: masking
+
+	column primary_purpose
+		dataType: string
+		lineageTag: 590245ea-6e13-59d3-a26d-9dfdd5165111
+		summarizeBy: none
+		sourceColumn: primary_purpose
+
+	column n_arms
+		dataType: int64
+		formatString: 0
+		lineageTag: e67ba3b8-4c38-5cc8-ad51-6a7b33c47ad6
+		summarizeBy: none
+		sourceColumn: n_arms
+
+	column has_drug
+		dataType: boolean
+		lineageTag: 03a866ed-2855-56c9-8a2e-35009f80d8d0
+		summarizeBy: none
+		sourceColumn: has_drug
+
+	column has_biological
+		dataType: boolean
+		lineageTag: f9516e05-24a8-56f4-884d-e71bcd6380dc
+		summarizeBy: none
+		sourceColumn: has_biological
+
+	column has_device
+		dataType: boolean
+		lineageTag: 3b6687e0-48d9-5719-8c6d-20267255a793
+		summarizeBy: none
+		sourceColumn: has_device
+
+	column has_procedure
+		dataType: boolean
+		lineageTag: 8cde05c7-00c9-56b8-b22c-e54eee02c21e
+		summarizeBy: none
+		sourceColumn: has_procedure
+
+	column has_behavioral
+		dataType: boolean
+		lineageTag: 69dcf5f4-9f0b-5357-a1d5-d9d97d03f440
+		summarizeBy: none
+		sourceColumn: has_behavioral
+
+	column has_other_intervention
+		dataType: boolean
+		lineageTag: 24006d6b-9eaf-52ee-92a7-9960dc033246
+		summarizeBy: none
+		sourceColumn: has_other_intervention
+
+	column sponsor_class
+		dataType: string
+		lineageTag: abecdcb5-674b-5cc7-8189-291669462dd1
+		summarizeBy: none
+		sourceColumn: sponsor_class
+
+	column n_collaborators
+		dataType: int64
+		formatString: 0
+		lineageTag: 302e251e-26cc-5bcd-b87b-4d465d7b01b1
+		summarizeBy: none
+		sourceColumn: n_collaborators
+
+	column has_dmc
+		dataType: boolean
+		lineageTag: 2bfb6b39-c3b6-5d2c-b9da-d6fefaa602df
+		summarizeBy: none
+		sourceColumn: has_dmc
+
+	column min_age_years
+		dataType: double
+		lineageTag: b993c959-bd85-52d1-9206-e7e105f00571
+		summarizeBy: none
+		sourceColumn: min_age_years
+
+	column max_age_years
+		dataType: double
+		lineageTag: 388baada-27b7-5121-8bea-c011b36e39e3
+		summarizeBy: none
+		sourceColumn: max_age_years
+
+	column sex
+		dataType: string
+		lineageTag: 7a4c1e9a-51be-5fc1-8767-f18256309fed
+		summarizeBy: none
+		sourceColumn: sex
+
+	column healthy_volunteers
+		dataType: boolean
+		lineageTag: 4e5fa73e-82a5-525b-9b78-6a77213fd405
+		summarizeBy: none
+		sourceColumn: healthy_volunteers
+
+	column n_inclusion_criteria
+		dataType: int64
+		formatString: 0
+		lineageTag: a7400ad2-e3ca-5a47-b54c-0c0e30b618cc
+		summarizeBy: none
+		sourceColumn: n_inclusion_criteria
+
+	column n_exclusion_criteria
+		dataType: int64
+		formatString: 0
+		lineageTag: c39e282a-357f-52da-b34c-7464eb00817f
+		summarizeBy: none
+		sourceColumn: n_exclusion_criteria
+
+	column criteria_text_length
+		dataType: int64
+		formatString: 0
+		lineageTag: 5f04f48e-5f90-5e82-aa59-199f4cd2eb5c
+		summarizeBy: none
+		sourceColumn: criteria_text_length
+
+	column n_sites
+		dataType: int64
+		formatString: 0
+		lineageTag: 412c3999-8c83-56a3-8932-4dfa1bd73ca0
+		summarizeBy: none
+		sourceColumn: n_sites
+
+	column n_countries
+		dataType: int64
+		formatString: 0
+		lineageTag: 498e2002-981e-5b3a-9250-1a3b50128cd4
+		summarizeBy: none
+		sourceColumn: n_countries
+
+	column us_only
+		dataType: boolean
+		lineageTag: 652a4e7f-b841-5c64-8ba0-1ddf2eef800e
+		summarizeBy: none
+		sourceColumn: us_only
+
+	column condition_category
+		dataType: string
+		lineageTag: 2cad74e6-c039-5e24-919a-906edf390ba0
+		summarizeBy: none
+		sourceColumn: condition_category
+
+	column n_conditions
+		dataType: int64
+		formatString: 0
+		lineageTag: 80046467-9d15-5559-b2d8-327ecc1bc9fe
+		summarizeBy: none
+		sourceColumn: n_conditions
+
+	column start_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 82abdf4d-a3c3-5224-a981-fd4b6f2a5b45
+		summarizeBy: none
+		sourceColumn: start_year
+
+	partition ml_features = m
+		mode: import
+		source = fnMart("ml_features")
